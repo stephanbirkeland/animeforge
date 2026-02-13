@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ scene_name }} - AnimeForge</title>
+    <link rel="stylesheet" href="scene.css">
+</head>
+<body>
+    <div id="animeforge-container">
+        <canvas id="animeforge-canvas" width="{{ width }}" height="{{ height }}"></canvas>
+        <div id="animeforge-controls">
+            <div class="control-group">
+                <label>Time</label>
+                <select id="af-time">
+                    {% for time in times %}
+                    <option value="{{ time }}"{{ ' selected' if time == default_time else '' }}>{{ time|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Weather</label>
+                <select id="af-weather">
+                    {% for weather in weathers %}
+                    <option value="{{ weather }}"{{ ' selected' if weather == default_weather else '' }}>{{ weather|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Season</label>
+                <select id="af-season">
+                    {% for season in seasons %}
+                    <option value="{{ season }}"{{ ' selected' if season == default_season else '' }}>{{ season|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Animation</label>
+                <select id="af-animation">
+                    {% for anim in animations %}
+                    <option value="{{ anim.id }}"{{ ' selected' if anim.id == default_animation else '' }}>{{ anim.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="control-group">
+                <button id="af-auto-time">Auto Time</button>
+                <button id="af-pause">Pause</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="animeforge-runtime.js"></script>
+    <script>
+        (async function() {
+            const scene = new AnimeForge.Scene('#animeforge-canvas', 'scene.json');
+            await scene.load();
+
+            // Expose to console for API testing
+            window.scene = scene;
+            console.log('%c AnimeForge Scene Loaded ', 'background: #6c3483; color: white; font-size: 14px; padding: 4px 8px; border-radius: 4px;');
+            console.log('Use window.scene to control the scene. Try:');
+            console.log("  scene.setTime('night')");
+            console.log("  scene.setWeather('rain')");
+            console.log("  scene.playAnimation('typing')");
+
+            // Wire up controls
+            document.getElementById('af-time').addEventListener('change', (e) => {
+                scene.setTime(e.target.value);
+            });
+            document.getElementById('af-weather').addEventListener('change', (e) => {
+                scene.setWeather(e.target.value);
+            });
+            document.getElementById('af-season').addEventListener('change', (e) => {
+                scene.setSeason(e.target.value);
+            });
+            document.getElementById('af-animation').addEventListener('change', (e) => {
+                scene.playAnimation(e.target.value);
+            });
+
+            let autoTime = false;
+            document.getElementById('af-auto-time').addEventListener('click', () => {
+                autoTime = !autoTime;
+                scene.setAutoTime(autoTime);
+                document.getElementById('af-auto-time').textContent = autoTime ? 'Manual Time' : 'Auto Time';
+            });
+
+            let paused = false;
+            document.getElementById('af-pause').addEventListener('click', () => {
+                paused = !paused;
+                if (paused) { scene.pause(); } else { scene.resume(); }
+                document.getElementById('af-pause').textContent = paused ? 'Resume' : 'Pause';
+            });
+        })();
+    </script>
+</body>
+</html>
