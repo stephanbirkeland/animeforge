@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PIL import Image
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -112,10 +115,7 @@ def optimize_image(
     img = Image.open(input_path)
 
     # Preserve alpha for formats that support it.
-    if format.upper() in ("JPEG", "JPG"):
-        img = img.convert("RGB")
-    else:
-        img = img.convert("RGBA")
+    img = img.convert("RGB") if format.upper() in ("JPEG", "JPG") else img.convert("RGBA")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

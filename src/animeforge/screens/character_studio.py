@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
@@ -22,7 +21,7 @@ from textual.widgets import (
 from animeforge.models.enums import AnimationState
 
 if TYPE_CHECKING:
-    from animeforge.app import AnimeForgeApp
+    from textual.app import ComposeResult
 
 
 class CharacterStudioScreen(Screen):
@@ -61,14 +60,13 @@ class CharacterStudioScreen(Screen):
                     placeholder="/path/to/reference.png",
                     id="char-ref-image",
                 )
-                with Horizontal(classes="row"):
-                    with Vertical(classes="col"):
-                        yield Label("IP-Adapter Weight")
-                        yield Input(
-                            value="0.75",
-                            placeholder="0.75",
-                            id="char-ip-weight",
-                        )
+                with Horizontal(classes="row"), Vertical(classes="col"):
+                    yield Label("IP-Adapter Weight")
+                    yield Input(
+                        value="0.75",
+                        placeholder="0.75",
+                        id="char-ip-weight",
+                    )
                 yield Label("Negative Prompt")
                 yield Input(
                     placeholder="bad anatomy, blurry, low quality",

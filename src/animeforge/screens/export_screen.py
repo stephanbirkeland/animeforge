@@ -6,7 +6,6 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
@@ -25,6 +24,8 @@ from textual.widgets import (
 from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
     from animeforge.models import ExportConfig, Project
 
 logger = logging.getLogger(__name__)
@@ -181,49 +182,54 @@ class ExportScreen(Screen):
             self._cancel_event.set()
         self._set_status("Cancelling export...")
 
-    async def _run_export(self, proj: Project, export_config: ExportConfig) -> None:
-        """Run the real export pipeline."""
+    def _run_export(self, proj: Project, export_config: ExportConfig) -> None:
+        """Run the export pipeline in a worker thread."""
         from animeforge.pipeline.export import export_project
 
-        log = self.query_one("#export-log", RichLog)
-        bar = self.query_one("#export-bar", ProgressBar)
+        def _log(msg: str) -> None:
+            self.app.call_from_thread(
+                self.query_one("#export-log", RichLog).write, msg,
+            )
 
-        log.write(
-            f"[bold cyan]Exporting[/bold cyan] to {export_config.output_dir}"
-        )
-        log.write(
+        def _bar(pct: float) -> None:
+            self.app.call_from_thread(
+                self.query_one("#export-bar", ProgressBar).update, progress=pct,
+            )
+
+        _log(f"[bold cyan]Exporting[/bold cyan] to {export_config.output_dir}")
+        _log(
             f"  Format: {export_config.image_format} @ quality {export_config.image_quality}"
         )
-        log.write(
+        _log(
             f"  Times: {len(export_config.times)}, "
             f"Weathers: {len(export_config.weathers)}, "
             f"Seasons: {len(export_config.seasons)}"
         )
 
-        bar.update(progress=10)
+        _bar(10)
 
         if self._cancel_event and self._cancel_event.is_set():
             self._running = False
-            log.write("[bold yellow]Export cancelled.[/bold yellow]")
-            self._set_status("Export cancelled.")
+            _log("[bold yellow]Export cancelled.[/bold yellow]")
+            self.app.call_from_thread(self._set_status, "Export cancelled.")
             return
 
         try:
-            bar.update(progress=30)
-            log.write("[bold cyan]Running export pipeline...[/bold cyan]")
+            _bar(30)
+            _log("[bold cyan]Running export pipeline...[/bold cyan]")
 
             output_path = export_project(proj, export_config)
 
-            bar.update(progress=100)
-            log.write(
+            _bar(100)
+            _log(
                 f"[bold green]Export complete![/bold green] "
                 f"Output written to {output_path}"
             )
-            self._set_status("Export complete!")
+            self.app.call_from_thread(self._set_status, "Export complete!")
         except Exception as exc:
             logger.exception("Export failed")
-            log.write(f"[bold red]Export failed:[/bold red] {exc}")
-            self._set_status(f"Export failed: {exc}")
+            _log(f"[bold red]Export failed:[/bold red] {exc}")
+            self.app.call_from_thread(self._set_status, f"Export failed: {exc}")
         finally:
             self._running = False
 

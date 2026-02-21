@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import typer
 
@@ -18,7 +18,7 @@ app = typer.Typer(
 def create(
     name: Annotated[str, typer.Argument(help="Project name")],
     directory: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--dir", "-d", help="Project directory"),
     ] = None,
 ) -> None:
@@ -48,7 +48,7 @@ def generate(
     height: Annotated[int, typer.Option("--height", "-H", help="Image height")] = 1024,
     steps: Annotated[int, typer.Option("--steps", "-s", help="Sampling steps")] = 30,
     output: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--output", "-o", help="Output directory"),
     ] = None,
 ) -> None:
@@ -97,7 +97,7 @@ def generate(
 def export(
     project_path: Annotated[Path, typer.Argument(help="Path to project directory or JSON")],
     output: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option("--output", "-o", help="Output directory"),
     ] = None,
 ) -> None:

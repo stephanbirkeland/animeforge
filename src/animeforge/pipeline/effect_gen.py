@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import math
 import random
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def generate_rain_sprites(

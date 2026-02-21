@@ -1,6 +1,11 @@
 """AnimeForge data models - pure Pydantic, no I/O."""
 
-from animeforge.models.character import AnimationDef, Character, StateTransition
+from animeforge.models.character import (
+    AnimationDef,
+    Character,
+    StateTransition,
+    create_default_character,
+)
 from animeforge.models.enums import (
     AnimationState,
     EffectType,
@@ -32,4 +37,5 @@ __all__ = [
     "TimeOfDay",
     "Weather",
     "Zone",
+    "create_default_character",
 ]

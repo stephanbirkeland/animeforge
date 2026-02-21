@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Select, Static
@@ -12,7 +11,7 @@ from textual.widgets import Button, Footer, Header, Label, Select, Static
 from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
-    from animeforge.app import AnimeForgeApp
+    from textual.app import ComposeResult
 
 
 class _SceneCanvas(Static):

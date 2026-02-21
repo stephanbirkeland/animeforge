@@ -59,6 +59,7 @@ class Scene(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str
+    description: str = ""
     width: int = 1920
     height: int = 1080
     layers: list[Layer] = Field(default_factory=list)

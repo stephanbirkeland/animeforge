@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label, Static
@@ -13,6 +13,8 @@ from textual.widgets import Button, DataTable, Footer, Header, Label, Static
 from animeforge.config import load_config
 
 if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
     from animeforge.app import AnimeForgeApp
 
 
@@ -81,9 +83,9 @@ class DashboardScreen(Screen):
                     proj = Project.load(project_file)
                     char_name = proj.character.name if proj.character else "-"
                     mtime = project_file.stat().st_mtime
-                    from datetime import datetime, timezone
+                    from datetime import datetime
 
-                    modified = datetime.fromtimestamp(mtime, tz=timezone.utc).strftime(
+                    modified = datetime.fromtimestamp(mtime, tz=UTC).strftime(
                         "%Y-%m-%d %H:%M"
                     )
                     table.add_row(

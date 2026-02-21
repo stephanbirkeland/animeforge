@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.message import Message
 from textual.widget import Widget
-from textual.widgets import Button, DataTable, Label, Static
+from textual.widgets import Button, DataTable, Static
 
-from animeforge.models import AnimationDef
 from animeforge.models.enums import AnimationState
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from animeforge.models import AnimationDef
 
 
 class AnimationPicker(Widget):

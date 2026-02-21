@@ -7,7 +7,6 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
@@ -21,6 +20,8 @@ from textual.widgets import (
 )
 
 if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
     from animeforge.models import Project
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,7 @@ class GenerationScreen(Screen):
     async def _run_generation(self, proj: Project) -> None:
         """Run the real generation pipeline with progress updates."""
         from animeforge.backend.comfyui import ComfyUIBackend
+        from animeforge.backend.mock import MockBackend
         from animeforge.config import load_config
         from animeforge.pipeline.effect_gen import (
             generate_leaf_sprites,
@@ -177,6 +179,7 @@ class GenerationScreen(Screen):
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # ── Set up backend ────────────────────────────────
+        backend: ComfyUIBackend | MockBackend
         backend = ComfyUIBackend(config.comfyui, output_dir=output_dir)
         backend_available = False
 
@@ -189,9 +192,11 @@ class GenerationScreen(Screen):
 
         if not backend_available:
             log.write(
-                "[bold yellow]ComfyUI is not available.[/bold yellow] "
-                "Effect sprites will still be generated (no AI backend needed)."
+                "[bold yellow]ComfyUI unavailable — falling back to MockBackend.[/bold yellow]"
             )
+            backend = MockBackend(output_dir=output_dir)
+            await backend.connect()
+            backend_available = True
 
         completed_phases = 0
         total_phases = 6
@@ -202,6 +207,14 @@ class GenerationScreen(Screen):
 
         def _cancelled() -> bool:
             return bool(self._cancel_event and self._cancel_event.is_set())
+
+        def _make_progress_cb(task_row: _TaskRow):
+            """Create a progress callback that updates a task row."""
+            def cb(step: int, total: int, status: str) -> None:
+                if total > 0:
+                    pct = (step / total) * 90 + 10  # 10-100 range
+                    self.app.call_from_thread(task_row.update_progress, pct)
+            return cb
 
         try:
             # ── Phase 1: Background layers ────────────────
@@ -215,6 +228,7 @@ class GenerationScreen(Screen):
                     bg_results = await generate_scene_backgrounds(
                         proj.scene, backend, config,
                         output_dir=output_dir / "backgrounds",
+                        progress_callback=_make_progress_cb(task_bg),
                     )
                     # Update project model with generated paths
                     if proj.scene.layers:
@@ -249,6 +263,7 @@ class GenerationScreen(Screen):
                     char_results = await generate_character_animations(
                         proj.character, proj.scene, backend, config,
                         output_dir=output_dir / "characters",
+                        progress_callback=_make_progress_cb(task_char),
                     )
                     # Update animation sprite_sheet paths on project model
                     for anim in proj.character.animations:

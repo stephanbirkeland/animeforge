@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from animeforge.backend.base import GenerationBackend, GenerationRequest
-from animeforge.config import AppConfig
 from animeforge.models import Scene, TimeOfDay, Weather
 from animeforge.pipeline.consistency import build_scene_prompt
+
+if TYPE_CHECKING:
+    from animeforge.backend.base import ProgressCallback
+    from animeforge.config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,7 @@ async def generate_scene_backgrounds(
     output_dir: Path | None = None,
     times: list[TimeOfDay] | None = None,
     weather: Weather = Weather.CLEAR,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[TimeOfDay, Path]:
     """Generate background images for each requested time-of-day.
 
@@ -65,7 +70,7 @@ async def generate_scene_backgrounds(
     # Locate the base background layer (lowest z_index layer).
     base_layer = None
     if scene.layers:
-        base_layer = min(scene.layers, key=lambda l: l.z_index)
+        base_layer = min(scene.layers, key=lambda ly: ly.z_index)
 
     results: dict[TimeOfDay, Path] = {}
 
@@ -105,7 +110,7 @@ async def generate_scene_backgrounds(
         else:
             logger.info("txt2img for %s (no base image)", time.value)
 
-        result = await backend.generate(request)
+        result = await backend.generate(request, progress_callback=progress_callback)
 
         if result.images:
             src = result.images[0]

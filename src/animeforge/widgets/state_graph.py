@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.widget import Widget
 from textual.widgets import Static
 
-from animeforge.models import AnimationDef, StateTransition
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
+    from animeforge.models import AnimationDef, StateTransition
 
 
 class StateGraph(Widget):
@@ -164,7 +168,7 @@ class StateGraph(Widget):
 
                 for x in range(start, end + 1):
                     if x < total_width:
-                        if x == start or x == end:
+                        if x in (start, end):
                             edge_row[x] = "+"
                         elif edge_row[x] == " ":
                             edge_row[x] = "-"
@@ -213,5 +217,6 @@ class StateGraph(Widget):
             "",
         ]
         legend_parts.extend(edge_labels if edge_labels else ["  (no transitions defined)"])
-        legend_parts.append(f"\n[dim]{len(state_ids)} states, {len(self._transitions)} transitions[/dim]")
+        n_states, n_trans = len(state_ids), len(self._transitions)
+        legend_parts.append(f"\n[dim]{n_states} states, {n_trans} transitions[/dim]")
         legend.update("\n".join(legend_parts))

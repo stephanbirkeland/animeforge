@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from animeforge.models import (
     AnimationDef,
     Character,
     Scene,
+    Season,
     TimeOfDay,
     Weather,
-    Season,
 )
-from animeforge.models.scene import Zone
 
+if TYPE_CHECKING:
+    from animeforge.models.scene import Zone
 
 # ---------------------------------------------------------------------------
 # Quality tags always appended/prepended to prompts.
@@ -74,7 +77,8 @@ def build_scene_prompt(
     parts: list[str] = [QUALITY_POSITIVE]
 
     # Scene identity.
-    parts.append(f"anime background, {scene.name}")
+    scene_desc = scene.description or scene.name
+    parts.append(f"anime background, {scene_desc}")
 
     # Time, weather, season context.
     parts.append(TIME_MODIFIERS.get(time, ""))

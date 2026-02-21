@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Label, ProgressBar, Static
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
 
 
 class _TaskEntry(Static):

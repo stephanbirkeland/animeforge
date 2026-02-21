@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw
 
-from animeforge.models.pose import PoseFrame, PoseKeypoints, PoseSequence
+from animeforge.models.pose import PoseKeypoints, PoseSequence
 from animeforge.poses.loader import load as _load_pose_json
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +130,7 @@ def render_pose_image(
             draw.line([kp_dict[a], kp_dict[b]], fill=colour, width=line_width)
 
     # Draw keypoint circles.
-    for name, (px, py) in kp_dict.items():
+    for _name, (px, py) in kp_dict.items():
         r = point_radius
         draw.ellipse([px - r, py - r, px + r, py + r], fill=(255, 255, 255))
 

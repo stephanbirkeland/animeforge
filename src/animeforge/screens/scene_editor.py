@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
@@ -21,6 +20,8 @@ from textual.widgets import (
 from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
     from animeforge.app import AnimeForgeApp
 
 
@@ -337,7 +338,8 @@ class SceneEditorScreen(Screen):
             self._set_status("No project loaded. Create a project first.")
             return
 
-        # Use the prompt as the scene name if it's still untitled
+        # Store the prompt in the scene description for generation.
+        proj.scene.description = prompt
         scene_name = self.query_one("#scene-name", Input).value.strip()
         if not scene_name:
             proj.scene.name = prompt[:60]
@@ -379,15 +381,35 @@ class SceneEditorScreen(Screen):
                 )
             )
 
-        scene = Scene(
-            name=scene_name,
-            width=width,
-            height=height,
-            zones=zones,
-            default_time=time_select.value if time_select.value != Select.BLANK else TimeOfDay.DAY,
-            default_weather=weather_select.value if weather_select.value != Select.BLANK else Weather.CLEAR,
-            default_season=season_select.value if season_select.value != Select.BLANK else Season.SUMMER,
-        )
+        # Preserve existing fields not editable in the UI.
+        existing = getattr(getattr(self.app, "_current_project", None), "scene", None)
+        existing_desc = existing.description if existing else ""
+        existing_layers = existing.layers if existing else []
+        existing_effects = existing.effects if existing else []
+        existing_id = existing.id if existing else None
+
+        kwargs: dict = {
+            "name": scene_name,
+            "description": existing_desc,
+            "width": width,
+            "height": height,
+            "layers": existing_layers,
+            "effects": existing_effects,
+            "zones": zones,
+            "default_time": (
+                time_select.value if time_select.value != Select.BLANK else TimeOfDay.DAY
+            ),
+            "default_weather": (
+                weather_select.value if weather_select.value != Select.BLANK else Weather.CLEAR
+            ),
+            "default_season": (
+                season_select.value if season_select.value != Select.BLANK else Season.SUMMER
+            ),
+        }
+        if existing_id is not None:
+            kwargs["id"] = existing_id
+
+        scene = Scene(**kwargs)
 
         proj = getattr(self.app, "_current_project", None)
         if proj is not None:

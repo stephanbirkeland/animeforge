@@ -6,18 +6,22 @@ import json
 import logging
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, PackageLoader
 from PIL import Image
 
 from animeforge.config import AppConfig, load_config
-from animeforge.models import ExportConfig, Project
 from animeforge.pipeline.assembly import optimize_image
+
+if TYPE_CHECKING:
+    from animeforge.models import ExportConfig, Project
 
 logger = logging.getLogger(__name__)
 
 # Expected runtime JS that ships with the package.
 RUNTIME_JS_FILENAME = "animeforge-runtime.js"
+SCENE_LOADER_JS_FILENAME = "scene-loader.js"
 
 
 def export_project(
@@ -167,7 +171,9 @@ def export_project(
     # ------------------------------------------------------------------
     # 5. Copy runtime JS
     # ------------------------------------------------------------------
-    runtime_src = Path(__file__).resolve().parent.parent / "runtime" / RUNTIME_JS_FILENAME
+    runtime_dir = Path(__file__).resolve().parent.parent / "runtime"
+
+    runtime_src = runtime_dir / RUNTIME_JS_FILENAME
     runtime_dest = out / RUNTIME_JS_FILENAME
     if runtime_src.exists():
         shutil.copy2(runtime_src, runtime_dest)
@@ -175,6 +181,16 @@ def export_project(
     else:
         logger.warning(
             "Runtime JS not found at %s; output will be incomplete", runtime_src,
+        )
+
+    loader_src = runtime_dir / SCENE_LOADER_JS_FILENAME
+    loader_dest = out / SCENE_LOADER_JS_FILENAME
+    if loader_src.exists():
+        shutil.copy2(loader_src, loader_dest)
+        logger.info("Copied scene-loader JS -> %s", loader_dest)
+    else:
+        logger.warning(
+            "Scene-loader JS not found at %s; output may be incomplete", loader_src,
         )
 
     # ------------------------------------------------------------------
@@ -208,8 +224,10 @@ def export_project(
         default_time=scene.default_time.value,
         default_weather=scene.default_weather.value,
         default_animation=default_animation,
+        default_season=scene.default_season.value,
         scene=scene_data,
         runtime_js=RUNTIME_JS_FILENAME,
+        scene_loader_js=SCENE_LOADER_JS_FILENAME,
     )
     index_path = out / "index.html"
     index_path.write_text(index_html)

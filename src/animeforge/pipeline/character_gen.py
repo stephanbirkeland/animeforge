@@ -6,10 +6,14 @@ import logging
 import shutil
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from animeforge.backend.base import GenerationBackend, GenerationRequest
-from animeforge.config import AppConfig
-from animeforge.models import AnimationDef, Character, Scene
+
+if TYPE_CHECKING:
+    from animeforge.backend.base import ProgressCallback
+    from animeforge.config import AppConfig
+    from animeforge.models import AnimationDef, Character, Scene
 from animeforge.pipeline.assembly import assemble_sprite_sheet
 from animeforge.pipeline.consistency import build_character_prompt, build_negative_prompt
 from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence, render_pose_image
@@ -25,6 +29,7 @@ async def generate_character_animations(
     *,
     output_dir: Path | None = None,
     animations: list[AnimationDef] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Path]:
     """Generate sprite sheets for each of a character's animation states.
 
@@ -131,7 +136,7 @@ async def generate_character_animations(
                         request.ip_adapter_model = config.models.ip_adapter
                         request.ip_adapter_weight = character.ip_adapter_weight
 
-                result = await backend.generate(request)
+                result = await backend.generate(request, progress_callback=progress_callback)
 
                 if result.images:
                     frame_dest = tmp / f"frame_{idx:03d}.png"

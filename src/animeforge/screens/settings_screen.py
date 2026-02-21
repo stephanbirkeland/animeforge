@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static, Switch
@@ -12,7 +11,7 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static, Switch
 from animeforge.config import load_config
 
 if TYPE_CHECKING:
-    from animeforge.app import AnimeForgeApp
+    from textual.app import ComposeResult
 
 
 class SettingsScreen(Screen):
