@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
@@ -73,9 +74,11 @@ class AppConfig(BaseSettings):
     generation: GenerationSettings = Field(default_factory=GenerationSettings)
 
     @classmethod
-    def settings_customise_sources(cls, settings_cls, **kwargs):  # type: ignore[override]
+    def settings_customise_sources(  # type: ignore[override]
+        cls, settings_cls: type[BaseSettings], **kwargs: Any,
+    ) -> tuple[Any, ...]:
         toml_path = _default_config_dir() / "config.toml"
-        sources = (
+        sources: tuple[Any, ...] = (
             kwargs.get("init_settings"),
             kwargs.get("env_settings"),
         )

@@ -13,6 +13,8 @@ from animeforge.models.enums import Season, TimeOfDay, Weather
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
+    from animeforge.models import Scene
+
 
 class _SceneCanvas(Static):
     """ASCII art representation of the scene layout with zones."""
@@ -29,12 +31,14 @@ class _SceneCanvas(Static):
 
     def __init__(self) -> None:
         super().__init__("")
-        self._scene = None
+        self._scene: Scene | None = None
         self._time = TimeOfDay.DAY
         self._weather = Weather.CLEAR
         self._season = Season.SUMMER
 
-    def set_scene(self, scene, time: TimeOfDay, weather: Weather, season: Season) -> None:
+    def set_scene(
+        self, scene: Scene | None, time: TimeOfDay, weather: Weather, season: Season,
+    ) -> None:
         self._scene = scene
         self._time = time
         self._weather = weather
@@ -137,7 +141,7 @@ class _SceneCanvas(Static):
         self.update(text)
 
 
-class PreviewScreen(Screen):
+class PreviewScreen(Screen[None]):
     """Preview the scene layout with zone visualization."""
 
     name = "preview"
@@ -211,9 +215,21 @@ class PreviewScreen(Screen):
         weather_select = self.query_one("#preview-weather", Select)
         season_select = self.query_one("#preview-season", Select)
 
-        time = time_select.value if time_select.value != Select.BLANK else TimeOfDay.DAY
-        weather = weather_select.value if weather_select.value != Select.BLANK else Weather.CLEAR
-        season = season_select.value if season_select.value != Select.BLANK else Season.SUMMER
+        time: TimeOfDay = (
+            time_select.value  # type: ignore[assignment]
+            if time_select.value != Select.BLANK
+            else TimeOfDay.DAY
+        )
+        weather: Weather = (
+            weather_select.value  # type: ignore[assignment]
+            if weather_select.value != Select.BLANK
+            else Weather.CLEAR
+        )
+        season: Season = (
+            season_select.value  # type: ignore[assignment]
+            if season_select.value != Select.BLANK
+            else Season.SUMMER
+        )
 
         if proj is None:
             canvas.update("[dim]No project loaded. Open a project from Dashboard.[/dim]")

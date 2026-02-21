@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -11,10 +11,12 @@ from textual.widgets import Button, Footer, Header, Input, Label, Static, Switch
 from animeforge.config import load_config
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from textual.app import ComposeResult
 
 
-class SettingsScreen(Screen):
+class SettingsScreen(Screen[None]):
     """Configure ComfyUI backend, model paths, and generation defaults."""
 
     name = "settings"
@@ -251,7 +253,7 @@ class SettingsScreen(Screen):
             self._set_status(f"Error saving: {exc}")
 
     @staticmethod
-    def _write_toml_fallback(path, data: dict) -> None:  # type: ignore[type-arg]
+    def _write_toml_fallback(path: Path, data: dict[str, Any]) -> None:
         """Minimal TOML writer for flat/one-level-nested dicts."""
         lines: list[str] = []
         for key, value in data.items():

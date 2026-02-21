@@ -86,6 +86,7 @@ def _create_gradient_image(width: int, height: int, prompt: str, seed: int) -> I
         draw.line([(0, y), (width, y)], fill=(r, g, b))
 
     # Overlay prompt text
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
     except OSError:

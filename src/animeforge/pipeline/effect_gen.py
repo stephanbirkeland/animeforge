@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PIL import Image, ImageDraw
 
@@ -147,7 +147,7 @@ def generate_leaf_sprites(
     ]
 
     num_leaves = 18
-    leaves = [
+    leaves: list[dict[str, object]] = [
         {
             "x": rng.uniform(0, frame_width),
             "y": rng.uniform(0, frame_height),
@@ -166,10 +166,16 @@ def generate_leaf_sprites(
         draw = ImageDraw.Draw(frame)
 
         for leaf in leaves:
-            cx = (leaf["x"] + leaf["drift_x"] * frame_idx) % frame_width
-            cy = (leaf["y"] + leaf["fall_speed"] * frame_idx) % frame_height
-            s = leaf["size"]
-            angle = leaf["angle_start"] + leaf["spin_rate"] * frame_idx
+            _x = cast("float", leaf["x"])
+            _drift_x = cast("float", leaf["drift_x"])
+            cx = (_x + _drift_x * frame_idx) % frame_width
+            _y = cast("float", leaf["y"])
+            _fall_speed = cast("float", leaf["fall_speed"])
+            cy = (_y + _fall_speed * frame_idx) % frame_height
+            s = cast("float", leaf["size"])
+            _angle_start = cast("float", leaf["angle_start"])
+            _spin_rate = cast("float", leaf["spin_rate"])
+            angle = _angle_start + _spin_rate * frame_idx
 
             # Simple leaf: an ellipse rotated via bounding-box approximation.
             # We draw two overlapping ellipses to approximate a leaf shape.
@@ -183,7 +189,8 @@ def generate_leaf_sprites(
                 (cx + dx, cy + dy),
                 (cx + half * math.cos(angle - 1.3), cy + half * math.sin(angle - 1.3)),
             ]
-            draw.polygon(points, fill=leaf["colour"])
+            colour = cast("tuple[int, int, int, int]", leaf["colour"])
+            draw.polygon(points, fill=colour)
 
         strip.paste(frame, (frame_idx * frame_width, 0))
 

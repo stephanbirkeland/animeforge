@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from animeforge.models.project import Project
 
 
-class AnimeForgeApp(App):
+class AnimeForgeApp(App[None]):
     """Main AnimeForge TUI application."""
 
     TITLE = "AnimeForge"
@@ -228,13 +228,13 @@ class AnimeForgeApp(App):
         from animeforge.screens.scene_editor import SceneEditorScreen
         from animeforge.screens.settings_screen import SettingsScreen
 
-        self.install_screen(DashboardScreen, name="dashboard")
-        self.install_screen(SceneEditorScreen, name="scene_editor")
-        self.install_screen(CharacterStudioScreen, name="character_studio")
-        self.install_screen(GenerationScreen, name="generation")
-        self.install_screen(ExportScreen, name="export")
-        self.install_screen(SettingsScreen, name="settings")
-        self.install_screen(PreviewScreen, name="preview")
+        self.install_screen(DashboardScreen, name="dashboard")  # type: ignore[arg-type]
+        self.install_screen(SceneEditorScreen, name="scene_editor")  # type: ignore[arg-type]
+        self.install_screen(CharacterStudioScreen, name="character_studio")  # type: ignore[arg-type]
+        self.install_screen(GenerationScreen, name="generation")  # type: ignore[arg-type]
+        self.install_screen(ExportScreen, name="export")  # type: ignore[arg-type]
+        self.install_screen(SettingsScreen, name="settings")  # type: ignore[arg-type]
+        self.install_screen(PreviewScreen, name="preview")  # type: ignore[arg-type]
 
         self.push_screen("dashboard")
 

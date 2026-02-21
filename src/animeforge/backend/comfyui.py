@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -81,7 +81,8 @@ class ComfyUIBackend:
         resp = await client.get("/object_info/CheckpointLoaderSimple")
         resp.raise_for_status()
         data = resp.json()
-        return data["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
+        result: list[str] = data["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
+        return result
 
     def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -89,9 +90,9 @@ class ComfyUIBackend:
             raise RuntimeError(msg)
         return self._client
 
-    def _build_workflow(self, request: GenerationRequest) -> dict:
+    def _build_workflow(self, request: GenerationRequest) -> dict[str, Any]:
         """Build a ComfyUI workflow graph for the generation request."""
-        workflow: dict[str, dict] = {}
+        workflow: dict[str, dict[str, Any]] = {}
         node_id = 1
 
         # Checkpoint loader
@@ -209,7 +210,7 @@ class ComfyUIBackend:
 
     def _add_controlnet(
         self,
-        workflow: dict,
+        workflow: dict[str, Any],
         request: GenerationRequest,
         ckpt_id: str,
         pos_id: str,
@@ -252,7 +253,7 @@ class ComfyUIBackend:
 
     def _add_ip_adapter(
         self,
-        workflow: dict,
+        workflow: dict[str, Any],
         request: GenerationRequest,
         ckpt_id: str,
         sampler_id: str,

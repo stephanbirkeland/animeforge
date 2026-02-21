@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ExportScreen(Screen):
+class ExportScreen(Screen[None]):
     """Configure export parameters and run the export pipeline."""
 
     name = "export"
@@ -155,7 +155,7 @@ class ExportScreen(Screen):
         return ExportConfig(
             output_dir=Path(self.query_one("#export-dir", Input).value),
             image_quality=image_quality,
-            image_format=image_format,
+            image_format=str(image_format),
             include_retina=self.query_one("#export-retina", Checkbox).value,
             include_preview=self.query_one("#export-preview", Checkbox).value,
             times=times,

@@ -72,7 +72,7 @@ def export_project(
     # 1. Copy / optimise background images — build per-layer image maps
     # ------------------------------------------------------------------
     scene = project.scene
-    layers_manifest: list[dict] = []
+    layers_manifest: list[dict[str, object]] = []
 
     for layer in scene.layers:
         layer_images: dict[str, str] = {}
@@ -94,7 +94,7 @@ def export_project(
     # ------------------------------------------------------------------
     # 2. Copy / optimise character sprite sheets
     # ------------------------------------------------------------------
-    animations_manifest: list[dict] = []
+    animations_manifest: list[dict[str, object]] = []
 
     if project.character:
         char = project.character
@@ -128,7 +128,7 @@ def export_project(
     # ------------------------------------------------------------------
     # 3. Copy effect sprites
     # ------------------------------------------------------------------
-    fx_manifest: list[dict] = []
+    fx_manifest: list[dict[str, object]] = []
 
     for effect in scene.effects:
         if effect.sprite_sheet and effect.sprite_sheet.exists():
@@ -139,7 +139,7 @@ def export_project(
                 effect.sprite_sheet, dest,
                 quality=config.image_quality, format=ext,
             )
-            entry: dict = {
+            entry: dict[str, object] = {
                 "id": effect.id,
                 "type": effect.type.value,
                 "sprite_sheet": f"effects/{dest_name}",
@@ -160,7 +160,7 @@ def export_project(
     if project.character:
         default_animation = project.character.default_animation
 
-    scene_data: dict = {
+    scene_data: dict[str, object] = {
         "version": 1,
         "meta": {
             "name": scene.name,
@@ -334,7 +334,7 @@ def _generate_preview(bg_dir: Path, out_dir: Path) -> None:
         if candidates:
             try:
                 img = Image.open(candidates[0])
-                img.thumbnail((480, 270), Image.LANCZOS)
+                img.thumbnail((480, 270), Image.Resampling.LANCZOS)
                 preview = out_dir / "preview.jpg"
                 img.convert("RGB").save(preview, "JPEG", quality=75)
                 logger.info("Preview -> %s", preview)

@@ -13,6 +13,7 @@ from animeforge.models import Rect, Zone
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.widgets._data_table import RowKey
 
 
 class ZoneEditor(Widget):
@@ -78,7 +79,7 @@ class ZoneEditor(Widget):
     ) -> None:
         super().__init__(name=name, id=id, classes=classes)
         self._zones: list[Zone] = list(zones or [])
-        self._editing_row_key = None
+        self._editing_row_key: RowKey | None = None
 
     def compose(self) -> ComposeResult:
         yield Static("Zone Editor", classes="ze-title")

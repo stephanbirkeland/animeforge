@@ -22,6 +22,7 @@ from textual.widgets import (
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
+    from animeforge.backend.base import ProgressCallback
     from animeforge.models import Project
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class _TaskRow(Static):
         lbl.update(f"{pct:.0f}%")
 
 
-class GenerationScreen(Screen):
+class GenerationScreen(Screen[None]):
     """Monitor and control asset generation tasks."""
 
     name = "generation"
@@ -208,7 +209,7 @@ class GenerationScreen(Screen):
         def _cancelled() -> bool:
             return bool(self._cancel_event and self._cancel_event.is_set())
 
-        def _make_progress_cb(task_row: _TaskRow):
+        def _make_progress_cb(task_row: _TaskRow) -> ProgressCallback:
             """Create a progress callback that updates a task row.
 
             Since _run_generation is an async coroutine running in the

@@ -22,9 +22,10 @@ from animeforge.models.enums import AnimationState
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.widgets._data_table import RowKey
 
 
-class CharacterStudioScreen(Screen):
+class CharacterStudioScreen(Screen[None]):
     """Define a character with reference images, animations, and transitions."""
 
     name = "character_studio"
@@ -163,6 +164,8 @@ class CharacterStudioScreen(Screen):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._editing_anim_key: RowKey | None = None
+
         # Animation table
         anim_table = self.query_one("#anim-table", DataTable)
         anim_table.add_columns("ID", "Name", "Zone", "FPS", "Frames", "Pose Seq", "Loop")
@@ -178,7 +181,7 @@ class CharacterStudioScreen(Screen):
         if proj is not None and proj.character is not None:
             self._load_character(proj.character)
 
-    def _load_character(self, char) -> None:  # type: ignore[type-arg]
+    def _load_character(self, char: object) -> None:
         """Populate fields from a Character model."""
         from animeforge.models import Character
 
@@ -438,7 +441,7 @@ class CharacterStudioScreen(Screen):
             negative_prompt=negative,
             animations=animations,
             transitions=transitions,
-            default_animation=default_anim,
+            default_animation=str(default_anim),
         )
 
         proj = getattr(self.app, "_current_project", None)

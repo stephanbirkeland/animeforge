@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -22,11 +22,12 @@ from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.widgets._data_table import RowKey
 
     from animeforge.app import AnimeForgeApp
 
 
-class SceneEditorScreen(Screen):
+class SceneEditorScreen(Screen[None]):
     """Edit scene background, layers, and interactive zones."""
 
     name = "scene_editor"
@@ -154,6 +155,8 @@ class SceneEditorScreen(Screen):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._editing_row_key: RowKey | None = None
+
         table = self.query_one("#zone-table", DataTable)
         table.add_columns("ID", "Name", "X", "Y", "W", "H", "Z", "Anims", "Interactive")
         table.cursor_type = "row"
@@ -163,7 +166,7 @@ class SceneEditorScreen(Screen):
         if proj is not None:
             self._load_scene(proj.scene)
 
-    def _load_scene(self, scene) -> None:  # type: ignore[type-arg]
+    def _load_scene(self, scene: object) -> None:
         """Populate fields from a Scene model."""
         from animeforge.models import Scene
 
@@ -448,7 +451,7 @@ class SceneEditorScreen(Screen):
         existing_effects = existing.effects if existing else []
         existing_id = existing.id if existing else None
 
-        kwargs: dict = {
+        kwargs: dict[str, Any] = {
             "name": scene_name,
             "description": existing_desc,
             "width": width,

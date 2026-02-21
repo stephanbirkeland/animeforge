@@ -64,7 +64,7 @@ def assemble_sprite_sheet(
 
         # Resize if needed.
         if img.size != (fw, fh):
-            img = img.resize((fw, fh), Image.LANCZOS)
+            img = img.resize((fw, fh), Image.Resampling.LANCZOS)
 
         if direction == "horizontal":
             x = idx * (fw + padding)
@@ -112,7 +112,7 @@ def optimize_image(
     Path
         The *output_path*, for chaining convenience.
     """
-    img = Image.open(input_path)
+    img: Image.Image = Image.open(input_path)
 
     # Preserve alpha for formats that support it.
     img = img.convert("RGB") if format.upper() in ("JPEG", "JPG") else img.convert("RGBA")

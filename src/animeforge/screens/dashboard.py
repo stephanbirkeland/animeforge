@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from animeforge.app import AnimeForgeApp
 
 
-class DashboardScreen(Screen):
+class DashboardScreen(Screen[None]):
     """Main dashboard showing project list and navigation."""
 
     name = "dashboard"
