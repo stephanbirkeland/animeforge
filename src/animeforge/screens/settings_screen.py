@@ -265,8 +265,6 @@ class SettingsScreen(Screen):
 
     def _test_connection(self) -> None:
         """Quick HTTP check against the ComfyUI backend."""
-        import asyncio
-
         host = self.query_one("#comfy-host", Input).value
         port = self.query_one("#comfy-port", Input).value
         ssl = self.query_one("#comfy-ssl", Switch).value
@@ -290,7 +288,7 @@ class SettingsScreen(Screen):
             except Exception as exc:  # noqa: BLE001
                 self._set_status(f"Connection failed: {exc}")
 
-        asyncio.ensure_future(_check())
+        self.run_worker(_check())
 
     def _set_status(self, text: str) -> None:
         label = self.query_one("#settings-status", Label)

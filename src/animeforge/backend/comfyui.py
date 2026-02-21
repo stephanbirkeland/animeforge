@@ -19,9 +19,15 @@ if TYPE_CHECKING:
 class ComfyUIBackend:
     """ComfyUI generation backend using REST API and WebSocket for progress."""
 
-    def __init__(self, settings: ComfyUISettings, output_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        settings: ComfyUISettings,
+        output_dir: Path | None = None,
+        checkpoint: str = "ponyDiffusionV6XL.safetensors",
+    ) -> None:
         self.settings = settings
         self.output_dir = output_dir or Path.home() / ".animeforge" / "generated"
+        self.checkpoint = checkpoint
         self._client: httpx.AsyncClient | None = None
         self._client_id = str(uuid.uuid4())
 
@@ -92,7 +98,7 @@ class ComfyUIBackend:
         ckpt_id = str(node_id)
         workflow[ckpt_id] = {
             "class_type": "CheckpointLoaderSimple",
-            "inputs": {"ckpt_name": "ponyDiffusionV6XL.safetensors"},
+            "inputs": {"ckpt_name": self.checkpoint},
         }
         node_id += 1
 
@@ -241,14 +247,34 @@ class ComfyUIBackend:
         self,
         prompt_id: str,
         progress_callback: ProgressCallback | None,
+        timeout: float = 600.0,
     ) -> list[Path]:
-        """Poll ComfyUI history endpoint until generation is complete."""
+        """Poll ComfyUI history endpoint until generation is complete.
+
+        Parameters
+        ----------
+        prompt_id:
+            The ComfyUI prompt ID to poll for.
+        progress_callback:
+            Optional callback for progress updates.
+        timeout:
+            Maximum seconds to wait before raising ``TimeoutError``.
+            Defaults to 600 (10 minutes).
+        """
         import asyncio
+        import time as _time
 
         client = self._ensure_client()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        deadline = _time.monotonic() + timeout
         while True:
+            if _time.monotonic() > deadline:
+                msg = (
+                    f"Generation timed out after {timeout}s "
+                    f"waiting for prompt {prompt_id}"
+                )
+                raise TimeoutError(msg)
             resp = await client.get(f"/history/{prompt_id}")
             resp.raise_for_status()
             history = resp.json()

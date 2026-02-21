@@ -69,26 +69,32 @@ def export_project(
         d.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------
-    # 1. Copy / optimise background images
+    # 1. Copy / optimise background images — build per-layer image maps
     # ------------------------------------------------------------------
     scene = project.scene
-    bg_manifest: dict[str, str] = {}
+    layers_manifest: list[dict] = []
 
     for layer in scene.layers:
+        layer_images: dict[str, str] = {}
         for time, src in layer.time_variants.items():
             if src.exists():
                 ext = config.image_format.lower()
-                dest_name = f"bg_{time.value}.{ext}"
+                dest_name = f"bg_{layer.id}_{time.value}.{ext}"
                 dest = bg_dir / dest_name
                 optimize_image(src, dest, quality=config.image_quality, format=ext)
-                bg_manifest[time.value] = f"backgrounds/{dest_name}"
+                layer_images[time.value] = f"backgrounds/{dest_name}"
             else:
                 logger.warning("Background source missing: %s", src)
+        layers_manifest.append({
+            "depth": layer.id,
+            "parallax_factor": layer.parallax_factor,
+            "images": layer_images,
+        })
 
     # ------------------------------------------------------------------
     # 2. Copy / optimise character sprite sheets
     # ------------------------------------------------------------------
-    char_manifest: dict[str, dict] = {}
+    animations_manifest: list[dict] = []
 
     if project.character:
         char = project.character
@@ -101,13 +107,21 @@ def export_project(
                     anim.sprite_sheet, dest,
                     quality=config.image_quality, format=ext,
                 )
-                char_manifest[anim.id] = {
+                # Determine frame dimensions from the sprite sheet image.
+                sheet_img = Image.open(anim.sprite_sheet)
+                sheet_w, sheet_h = sheet_img.size
+                frame_w = sheet_w // max(anim.frame_count, 1)
+                frame_h = sheet_h
+
+                animations_manifest.append({
+                    "name": anim.id,
                     "sprite_sheet": f"characters/{dest_name}",
+                    "frame_width": frame_w,
+                    "frame_height": frame_h,
                     "frame_count": anim.frame_count,
                     "fps": anim.fps,
                     "loop": anim.loop,
-                    "zone_id": anim.zone_id,
-                }
+                })
             else:
                 logger.warning("Sprite sheet missing for animation '%s'", anim.id)
 
@@ -141,27 +155,46 @@ def export_project(
     # ------------------------------------------------------------------
     # 4. Generate scene.json (runtime descriptor)
     # ------------------------------------------------------------------
-    scene_data = {
+    # Determine the default animation name.
+    default_animation = "idle"
+    if project.character:
+        default_animation = project.character.default_animation
+
+    scene_data: dict = {
+        "version": 1,
+        "meta": {
+            "name": scene.name,
+            "width": scene.width,
+            "height": scene.height,
+        },
+        "layers": layers_manifest,
+        "animations": animations_manifest,
+        "effects": fx_manifest,
+        "zones": [
+            {
+                "id": z.id,
+                "x": z.bounds.x,
+                "y": z.bounds.y,
+                "width": z.bounds.width,
+                "height": z.bounds.height,
+                "type": "character" if z.character_animations else "ambient",
+                "scale": 1,
+            }
+            for z in scene.zones
+        ],
+        "initial": {
+            "time": scene.default_time.value,
+            "season": scene.default_season.value,
+            "weather": scene.default_weather.value,
+            "animation": default_animation,
+        },
+        # Backward-compat aliases (used by Jinja2 templates).
         "name": scene.name,
         "width": scene.width,
         "height": scene.height,
         "default_time": scene.default_time.value,
         "default_weather": scene.default_weather.value,
         "default_season": scene.default_season.value,
-        "backgrounds": bg_manifest,
-        "characters": char_manifest,
-        "effects": fx_manifest,
-        "zones": [
-            {
-                "id": z.id,
-                "name": z.name,
-                "bounds": z.bounds.model_dump(),
-                "z_index": z.z_index,
-                "character_animations": z.character_animations,
-                "interactive": z.interactive,
-            }
-            for z in scene.zones
-        ],
     }
 
     scene_json_path = out / "scene.json"

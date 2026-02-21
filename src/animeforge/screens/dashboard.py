@@ -141,12 +141,24 @@ class DashboardScreen(Screen):
             case "btn-settings":
                 self.action_open_settings()
             case "btn-scene":
+                if getattr(self.app, "_current_project", None) is None:
+                    self._set_status("No project loaded. Create or open a project first.")
+                    return
                 app.navigate("scene_editor")
             case "btn-character":
+                if getattr(self.app, "_current_project", None) is None:
+                    self._set_status("No project loaded. Create or open a project first.")
+                    return
                 app.navigate("character_studio")
             case "btn-generate":
+                if getattr(self.app, "_current_project", None) is None:
+                    self._set_status("No project loaded. Create or open a project first.")
+                    return
                 app.navigate("generation")
             case "btn-export":
+                if getattr(self.app, "_current_project", None) is None:
+                    self._set_status("No project loaded. Create or open a project first.")
+                    return
                 app.navigate("export")
             case "btn-preview":
                 app.navigate("preview")
@@ -160,6 +172,7 @@ class DashboardScreen(Screen):
             from animeforge.models import Project
 
             proj = Project.load(path)
+            proj.project_dir = path if path.is_dir() else path.parent
             self.app._current_project = proj  # type: ignore[attr-defined]
             self._set_status(f"Opened: {proj.name}")
         except Exception as exc:  # noqa: BLE001

@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Footer, Header
+
+if TYPE_CHECKING:
+    from animeforge.models.project import Project
 
 
 class AnimeForgeApp(App):
@@ -12,6 +17,8 @@ class AnimeForgeApp(App):
 
     TITLE = "AnimeForge"
     SUB_TITLE = "Anime Scene Generator"
+
+    _current_project: Project | None = None
 
     CSS = """
     Screen {

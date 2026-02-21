@@ -209,11 +209,15 @@ class GenerationScreen(Screen):
             return bool(self._cancel_event and self._cancel_event.is_set())
 
         def _make_progress_cb(task_row: _TaskRow):
-            """Create a progress callback that updates a task row."""
+            """Create a progress callback that updates a task row.
+
+            Since _run_generation is an async coroutine running in the
+            main event loop (not a thread), we call widget methods directly.
+            """
             def cb(step: int, total: int, status: str) -> None:
                 if total > 0:
                     pct = (step / total) * 90 + 10  # 10-100 range
-                    self.app.call_from_thread(task_row.update_progress, pct)
+                    task_row.update_progress(pct)
             return cb
 
         try:

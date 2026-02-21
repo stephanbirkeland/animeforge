@@ -182,6 +182,10 @@ class SceneEditorScreen(Screen):
                 str(zone.z_index),
             )
 
+        self.query_one("#scene-time", Select).value = scene.default_time
+        self.query_one("#scene-weather", Select).value = scene.default_weather
+        self.query_one("#scene-season", Select).value = scene.default_season
+
         self._set_status(f"Loaded scene: {scene.name} ({len(scene.zones)} zones)")
 
     # ── Button handlers ──────────────────────────────────────
@@ -345,6 +349,12 @@ class SceneEditorScreen(Screen):
             proj.scene.name = prompt[:60]
         else:
             proj.scene.name = scene_name
+
+        try:
+            proj.save()
+        except Exception as exc:  # noqa: BLE001
+            self._set_status(f"Error saving before generation: {exc}")
+            return
 
         self._set_status(f"Background generation queued: '{prompt[:50]}...'")
         app: AnimeForgeApp = self.app  # type: ignore[assignment]

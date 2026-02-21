@@ -165,7 +165,7 @@ class CharacterStudioScreen(Screen):
     def on_mount(self) -> None:
         # Animation table
         anim_table = self.query_one("#anim-table", DataTable)
-        anim_table.add_columns("ID", "Name", "Zone", "FPS", "Frames", "Pose Seq")
+        anim_table.add_columns("ID", "Name", "Zone", "FPS", "Frames", "Pose Seq", "Loop")
         anim_table.cursor_type = "row"
 
         # Transition table
@@ -202,6 +202,7 @@ class CharacterStudioScreen(Screen):
                 str(anim.fps),
                 str(anim.frame_count),
                 anim.pose_sequence,
+                "Yes" if anim.loop else "No",
             )
 
         trans_table = self.query_one("#transition-table", DataTable)
@@ -263,6 +264,7 @@ class CharacterStudioScreen(Screen):
             self.query_one("#anim-zone", Input).value = str(cells[2])
             self.query_one("#anim-fps", Input).value = str(cells[3])
             self.query_one("#anim-frames", Input).value = str(cells[4])
+            self.query_one("#anim-loop", Switch).value = str(cells[6]).lower() == "yes"
             self._editing_anim_key = row_key
         except Exception:  # noqa: BLE001
             self._set_status("Select an animation row first.")
@@ -288,7 +290,8 @@ class CharacterStudioScreen(Screen):
             table.remove_row(editing_key)
             self._editing_anim_key = None
 
-        table.add_row(anim_id, anim_name, zone_id, fps, frames, pose_seq)
+        loop = self.query_one("#anim-loop", Switch).value
+        table.add_row(anim_id, anim_name, zone_id, fps, frames, pose_seq, "Yes" if loop else "No")
         self._set_status(f"Animation '{anim_name}' saved.")
         self._clear_anim_fields()
 
@@ -384,6 +387,7 @@ class CharacterStudioScreen(Screen):
                     fps=int(cells[3]),
                     frame_count=int(cells[4]),
                     pose_sequence=str(cells[5]),
+                    loop=str(cells[6]).lower() == "yes",
                 )
             )
 

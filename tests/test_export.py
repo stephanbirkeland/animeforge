@@ -45,10 +45,22 @@ def test_export_creates_scene_json(_populated_project: Project, tmp_path: Path):
     assert scene_json.exists()
 
     data = json.loads(scene_json.read_text())
+    # Top-level backward-compat keys
     assert data["name"] == _populated_project.scene.name
     assert data["width"] == 1920
     assert data["height"] == 1080
     assert "default_season" in data
+    # New runtime-expected keys
+    assert data["meta"]["name"] == _populated_project.scene.name
+    assert data["meta"]["width"] == 1920
+    assert data["meta"]["height"] == 1080
+    assert isinstance(data["layers"], list)
+    assert isinstance(data["animations"], list)
+    assert "initial" in data
+    assert data["initial"]["time"] == "day"
+    assert data["initial"]["season"] == "summer"
+    assert data["initial"]["weather"] == "clear"
+    assert data["initial"]["animation"] == "idle"
 
 
 def test_export_creates_index_html(_populated_project: Project, tmp_path: Path):
@@ -88,4 +100,13 @@ def test_export_scene_json_has_zones(_populated_project: Project, tmp_path: Path
     out = export_project(_populated_project, config)
     data = json.loads((out / "scene.json").read_text())
     assert len(data["zones"]) == 1
-    assert data["zones"][0]["id"] == "desk"
+    zone = data["zones"][0]
+    assert zone["id"] == "desk"
+    # Flat x/y/width/height (not nested bounds)
+    assert zone["x"] == 400
+    assert zone["y"] == 300
+    assert zone["width"] == 600
+    assert zone["height"] == 400
+    assert "bounds" not in zone
+    assert zone["type"] == "character"
+    assert zone["scale"] == 1

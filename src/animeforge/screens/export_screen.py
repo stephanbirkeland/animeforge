@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from typing import TYPE_CHECKING
 
@@ -67,7 +68,6 @@ class ExportScreen(Screen):
                 with Horizontal(classes="row"):
                     yield Checkbox("Include Retina (@2x)", value=False, id="export-retina")
                     yield Checkbox("Include Preview HTML", value=True, id="export-preview")
-                    yield Checkbox("Minify JS", value=False, id="export-minify")
 
             # ── Time of Day ──────────────────────────────────
             with Vertical(classes="card"):
@@ -152,7 +152,6 @@ class ExportScreen(Screen):
             image_format=image_format,
             include_retina=self.query_one("#export-retina", Checkbox).value,
             include_preview=self.query_one("#export-preview", Checkbox).value,
-            minify_js=self.query_one("#export-minify", Checkbox).value,
             times=times,
             weathers=weathers,
             seasons=seasons,
@@ -172,7 +171,17 @@ class ExportScreen(Screen):
         self._running = True
         self._cancel_event = asyncio.Event()
         self._set_status("Export started...")
-        self.run_worker(self._run_export(proj, export_config), exclusive=True, thread=True)
+        # Capture widget references in the main thread before starting the worker
+        log_widget = self.query_one("#export-log", RichLog)
+        bar_widget = self.query_one("#export-bar", ProgressBar)
+        status_label = self.query_one("#export-status", Label)
+        self.run_worker(
+            functools.partial(
+                self._run_export, proj, export_config, log_widget, bar_widget, status_label,
+            ),
+            exclusive=True,
+            thread=True,
+        )
 
     def _cancel_export(self) -> None:
         if not self._running:
@@ -182,19 +191,25 @@ class ExportScreen(Screen):
             self._cancel_event.set()
         self._set_status("Cancelling export...")
 
-    def _run_export(self, proj: Project, export_config: ExportConfig) -> None:
+    def _run_export(
+        self,
+        proj: Project,
+        export_config: ExportConfig,
+        log_widget: RichLog,
+        bar_widget: ProgressBar,
+        status_label: Label,
+    ) -> None:
         """Run the export pipeline in a worker thread."""
         from animeforge.pipeline.export import export_project
 
         def _log(msg: str) -> None:
-            self.app.call_from_thread(
-                self.query_one("#export-log", RichLog).write, msg,
-            )
+            self.app.call_from_thread(log_widget.write, msg)
 
         def _bar(pct: float) -> None:
-            self.app.call_from_thread(
-                self.query_one("#export-bar", ProgressBar).update, progress=pct,
-            )
+            self.app.call_from_thread(bar_widget.update, progress=pct)
+
+        def _status(text: str) -> None:
+            self.app.call_from_thread(status_label.update, text)
 
         _log(f"[bold cyan]Exporting[/bold cyan] to {export_config.output_dir}")
         _log(
@@ -211,7 +226,7 @@ class ExportScreen(Screen):
         if self._cancel_event and self._cancel_event.is_set():
             self._running = False
             _log("[bold yellow]Export cancelled.[/bold yellow]")
-            self.app.call_from_thread(self._set_status, "Export cancelled.")
+            _status("Export cancelled.")
             return
 
         try:
@@ -225,11 +240,11 @@ class ExportScreen(Screen):
                 f"[bold green]Export complete![/bold green] "
                 f"Output written to {output_path}"
             )
-            self.app.call_from_thread(self._set_status, "Export complete!")
+            _status("Export complete!")
         except Exception as exc:
             logger.exception("Export failed")
             _log(f"[bold red]Export failed:[/bold red] {exc}")
-            self.app.call_from_thread(self._set_status, f"Export failed: {exc}")
+            _status(f"Export failed: {exc}")
         finally:
             self._running = False
 

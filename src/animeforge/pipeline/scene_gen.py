@@ -16,14 +16,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Time-of-day visual modifiers appended to the base scene prompt.
-TIME_PROMPTS: dict[TimeOfDay, str] = {
-    TimeOfDay.DAWN: "early morning, pink sky, soft light",
-    TimeOfDay.DAY: "bright daylight, clear sky",
-    TimeOfDay.SUNSET: "golden hour, orange sky, warm light",
-    TimeOfDay.NIGHT: "nighttime, moonlight, dark sky, city lights",
-}
-
 
 async def generate_scene_backgrounds(
     scene: Scene,

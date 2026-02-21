@@ -17,7 +17,6 @@ class ExportConfig(BaseModel):
     image_format: str = "webp"
     include_retina: bool = False
     include_preview: bool = True
-    minify_js: bool = False
     times: list[TimeOfDay] = list(TimeOfDay)
     weathers: list[Weather] = list(Weather)
     seasons: list[Season] = list(Season)
