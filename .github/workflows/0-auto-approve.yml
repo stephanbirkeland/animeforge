@@ -1,0 +1,104 @@
+name: Auto-Approve Easy Wins
+
+on:
+  schedule:
+    # Run at 17:15 CET (16:15 UTC) on weekdays — 10 min after queue processor
+    - cron: "15 16 * * 1-5"
+    # Run at 10:00 CET (09:00 UTC) on weekends for weekend batch
+    - cron: "0 9 * * 0,6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  auto-approve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Evaluate and approve easy wins
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Find all issues with "planned" label (have a plan, awaiting approval)
+          ISSUES=$(gh issue list --label "planned" --state open --json number,title,labels --jq '
+            [.[] | select(.labels | map(.name) | contains(["approved"]) | not)]
+            | .[:5]
+            | .[].number
+          ')
+
+          if [ -z "$ISSUES" ]; then
+            echo "No planned issues awaiting approval"
+            exit 0
+          fi
+
+          for ISSUE_NUM in $ISSUES; do
+            echo "=== Evaluating issue #$ISSUE_NUM ==="
+
+            # Get the plan comment (last comment from the bot)
+            PLAN=$(gh issue view "$ISSUE_NUM" --json comments --jq '
+              [.comments[] | select(.body | startswith("## Implementation Plan"))] | last | .body // "No plan found"
+            ')
+
+            ISSUE_TITLE=$(gh issue view "$ISSUE_NUM" --json title --jq '.title')
+            ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --json body --jq '.body')
+
+            # Ask Claude to evaluate complexity
+            VERDICT=$(claude --model claude-sonnet-4-6 --max-turns 3 --print --dangerously-skip-permissions <<EVAL_EOF
+          You are evaluating whether a planned GitHub issue is safe to auto-approve for AI implementation.
+
+          ## Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}
+
+          ## Plan
+
+          ${PLAN}
+
+          ## Evaluation criteria
+
+          An issue is an "easy win" safe for auto-approval if ALL of these are true:
+          1. Changes 3 or fewer files
+          2. No changes to pyproject.toml dependencies (adding deps needs human review)
+          3. No changes to CI/CD workflows
+          4. No security-sensitive changes (auth, secrets, permissions)
+          5. No breaking API changes
+          6. The plan is clear and well-scoped
+          7. Low risk of side effects
+
+          Respond with EXACTLY one line:
+          - "APPROVE" if all criteria are met
+          - "SKIP: <reason>" if any criterion fails
+
+          No other output.
+          EVAL_EOF
+            )
+
+            echo "Verdict for #$ISSUE_NUM: $VERDICT"
+
+            if echo "$VERDICT" | grep -q "^APPROVE"; then
+              echo "Auto-approving issue #$ISSUE_NUM"
+              gh issue comment "$ISSUE_NUM" --body "$(cat <<'COMMENT_EOF'
+          **Auto-approved** — this issue meets the easy-win criteria:
+          - Small scope (≤3 files)
+          - No dependency/CI/security changes
+          - Clear, well-scoped plan
+
+          Starting development automatically.
+          COMMENT_EOF
+              )"
+              gh issue edit "$ISSUE_NUM" --add-label "approved"
+            else
+              echo "Skipping issue #$ISSUE_NUM: $VERDICT"
+            fi
+
+            # Small delay between evaluations to be respectful of rate limits
+            sleep 5
+          done
