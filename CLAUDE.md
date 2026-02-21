@@ -38,3 +38,11 @@ uv run pytest              # Tests
 - Config at `~/.animeforge/config.toml`
 - Web output is self-contained (no CDN dependencies)
 - Runtime JS target: ~15KB minified, Canvas 2D only
+
+## CI/CD Instructions (for automated workflows)
+- Always run `uv run pytest` before committing
+- Always run `uv run ruff check src/` before committing
+- Link PRs to their source issue with "Resolves #N"
+- Keep PR descriptions concise with a test plan section
+- Never modify pyproject.toml version without explicit instruction
+- When fixing CI failures, only fix the failing code — don't refactor

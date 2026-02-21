@@ -1,0 +1,87 @@
+name: Claude Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: >
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-review')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          git diff origin/main...HEAD > /tmp/pr-diff.txt
+          DIFF_SIZE=$(wc -c < /tmp/pr-diff.txt | tr -d ' ')
+          echo "diff_size=$DIFF_SIZE" >> "$GITHUB_OUTPUT"
+
+      - name: Review PR
+        if: steps.diff.outputs.diff_size != '0'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          PR_DIFF=$(cat /tmp/pr-diff.txt)
+
+          claude --model claude-sonnet-4-6 --max-turns 5 --print <<PROMPT_EOF > /tmp/review-output.md
+          You are reviewing a pull request for the AnimeForge project.
+
+          ## PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
+
+          ${{ github.event.pull_request.body }}
+
+          ## Diff
+
+          ${PR_DIFF}
+
+          ## Instructions
+
+          Read CLAUDE.md to understand project conventions, then review this diff.
+
+          Provide a concise code review covering:
+          1. **Correctness** — Are there bugs or logic errors?
+          2. **Style** — Does the code follow project conventions?
+          3. **Tests** — Are there adequate tests for the changes?
+          4. **Security** — Any security concerns?
+
+          Format your review as a clear, concise markdown comment.
+          If the code looks good, say so briefly — don't nitpick.
+          Focus on substantive issues only.
+          PROMPT_EOF
+
+      - name: Post review comment
+        if: steps.diff.outputs.diff_size != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let review = 'Review completed. Check workflow logs for details.';
+            try {
+              review = fs.readFileSync('/tmp/review-output.md', 'utf8').trim();
+            } catch (e) {
+              console.log('Could not read review output file:', e.message);
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Claude Code Review\n\n${review}`
+            });

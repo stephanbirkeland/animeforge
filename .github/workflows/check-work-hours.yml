@@ -1,0 +1,67 @@
+name: Check Work Hours
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        description: "Issue or PR number to label if queued"
+        required: false
+        type: number
+    outputs:
+      allowed:
+        description: "Whether execution is allowed (outside work hours)"
+        value: ${{ jobs.check.outputs.allowed }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.time-check.outputs.allowed }}
+    steps:
+      - name: Check if outside CET work hours
+        id: time-check
+        run: |
+          # Get current time in CET/CEST
+          CET_HOUR=$(TZ="Europe/Oslo" date +%H)
+          CET_DOW=$(TZ="Europe/Oslo" date +%u)  # 1=Monday, 7=Sunday
+
+          echo "CET hour: $CET_HOUR, day of week: $CET_DOW"
+
+          # Weekends (Saturday=6, Sunday=7) are always allowed
+          if [ "$CET_DOW" -ge 6 ]; then
+            echo "Weekend — allowed"
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Weekdays: block 08:00-16:59 CET (work hours)
+          if [ "$CET_HOUR" -ge 8 ] && [ "$CET_HOUR" -lt 17 ]; then
+            echo "Work hours (08:00-17:00 CET) — queued"
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "After hours — allowed"
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Queue if during work hours
+        if: steps.time-check.outputs.allowed == 'false' && inputs.issue_number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = ${{ inputs.issue_number }};
+
+            // Add queued label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: ['queued']
+            });
+
+            // Post comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: '⏰ Queued — will run after 17:00 CET today (or immediately on weekends).'
+            });

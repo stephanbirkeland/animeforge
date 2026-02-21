@@ -1,0 +1,137 @@
+name: Claude Develop
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  time-gate:
+    if: github.event.label.name == 'approved'
+    uses: ./.github/workflows/check-work-hours.yml
+    with:
+      issue_number: ${{ github.event.issue.number }}
+
+  develop:
+    needs: time-gate
+    if: needs.time-gate.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: claude-dev-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      - name: Set up Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create feature branch
+        run: |
+          BRANCH="claude/issue-${{ github.event.issue.number }}"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Update labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.issue.number;
+            // Remove approved, add in-development
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue, name: 'approved'
+              });
+            } catch (e) {}
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: issue, labels: ['in-development']
+            });
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --dev
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Implement feature
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY=$(cat <<'ISSUE_EOF'
+          ${{ github.event.issue.body }}
+          ISSUE_EOF
+          )
+
+          # Get the plan from issue comments
+          PLAN_COMMENT=$(gh issue view ${{ github.event.issue.number }} --json comments --jq '.comments[-1].body' 2>/dev/null || echo "No plan found")
+
+          claude --model claude-opus-4-6 --max-turns 25 <<PROMPT_EOF
+          You are implementing a feature for the AnimeForge project.
+
+          ## Issue #${{ github.event.issue.number }}: ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}
+
+          ## Implementation Plan
+
+          ${PLAN_COMMENT}
+
+          ## Instructions
+
+          1. Read CLAUDE.md to understand project conventions
+          2. Implement the feature following the plan
+          3. Run \`uv run ruff check src/\` and fix any lint errors
+          4. Run \`uv run pytest\` and fix any test failures
+          5. Commit your changes with a descriptive message
+          6. Do NOT push — the workflow will handle that
+
+          Important:
+          - Follow existing code patterns and conventions
+          - Add tests for new functionality
+          - Keep changes focused on the issue
+          PROMPT_EOF
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+
+      - name: Push branch and create PR
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          git push -u origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "feat: ${{ github.event.issue.title }}" \
+            --body "$(cat <<'EOF'
+          Resolves #${{ github.event.issue.number }}
+
+          ## Summary
+          Automated implementation by Claude Code.
+
+          ## Test Plan
+          - [ ] CI passes (lint + type check + tests)
+          - [ ] Coverage maintained or improved
+          - [ ] Manual review of changes
+
+          🤖 Generated with [Claude Code](https://claude.ai/code)
+          EOF
+          )" \
+            --head "$BRANCH" \
+            --base main)
+
+          echo "Created PR: $PR_URL"

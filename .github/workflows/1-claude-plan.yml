@@ -1,0 +1,89 @@
+name: Claude Plan
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  time-gate:
+    if: github.event.label.name == 'claude'
+    uses: ./.github/workflows/check-work-hours.yml
+    with:
+      issue_number: ${{ github.event.issue.number }}
+
+  plan:
+    needs: time-gate
+    if: needs.time-gate.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: claude-plan-${{ github.event.issue.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate implementation plan
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY=$(cat <<'ISSUE_EOF'
+          ${{ github.event.issue.body }}
+          ISSUE_EOF
+          )
+
+          claude --model claude-sonnet-4-6 --max-turns 10 --print <<PROMPT_EOF > /tmp/plan-output.md
+          You are analyzing a GitHub issue to create an implementation plan.
+
+          ## Issue #${{ github.event.issue.number }}: ${ISSUE_TITLE}
+
+          ${ISSUE_BODY}
+
+          ## Instructions
+
+          Read the CLAUDE.md file and understand the project structure.
+          Then create a detailed implementation plan for this issue.
+
+          Your plan should include:
+          1. **Summary** — What needs to be done (1-2 sentences)
+          2. **Files to modify** — List each file and what changes are needed
+          3. **New files** — Any new files to create
+          4. **Testing strategy** — How to verify the changes work
+          5. **Risks** — Any potential issues or edge cases
+
+          Output ONLY the plan in markdown format. Do not implement anything.
+          PROMPT_EOF
+
+      - name: Post plan as comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan = 'Plan generation completed. Check workflow logs for details.';
+            try {
+              plan = fs.readFileSync('/tmp/plan-output.md', 'utf8').trim();
+            } catch (e) {
+              console.log('Could not read plan output file:', e.message);
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## Implementation Plan\n\n${plan}\n\n---\n*Add the \`approved\` label to start development.*`
+            });
+
+            // Add planned label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['planned']
+            });

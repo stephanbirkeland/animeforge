@@ -1,0 +1,91 @@
+name: Process Queue
+
+on:
+  schedule:
+    # 16:05 UTC = 17:05 CET (winter) / 18:05 CEST (summer)
+    - cron: "5 16 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process queued issues and PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find all issues/PRs with the "queued" label
+            const { data: items } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'queued',
+              state: 'open',
+              per_page: 50
+            });
+
+            console.log(`Found ${items.length} queued items`);
+
+            for (const item of items) {
+              const labels = item.labels.map(l => l.name);
+              console.log(`Processing #${item.number}: ${item.title} [${labels.join(', ')}]`);
+
+              // Remove the queued label
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  name: 'queued'
+                });
+              } catch (e) {
+                console.log(`Could not remove queued label from #${item.number}: ${e.message}`);
+              }
+
+              // Determine which trigger label to re-add based on current state
+              // If it had "claude" label (planning phase), re-add it
+              // If it had "approved" label (dev phase), re-add it
+              // The presence of other labels tells us which phase was queued
+
+              if (labels.includes('planned')) {
+                // Was queued after planning — needs human review, just remove queued
+                console.log(`#${item.number}: has 'planned' label, awaiting human approval`);
+              } else if (labels.includes('approved')) {
+                // Development was queued — remove and re-add to re-trigger
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  name: 'approved'
+                }).catch(() => {});
+
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  labels: ['approved']
+                });
+                console.log(`#${item.number}: re-triggered 'approved' label`);
+              } else if (labels.includes('claude')) {
+                // Planning was queued — remove and re-add to re-trigger
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  name: 'claude'
+                }).catch(() => {});
+
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: item.number,
+                  labels: ['claude']
+                });
+                console.log(`#${item.number}: re-triggered 'claude' label`);
+              } else {
+                console.log(`#${item.number}: no recognized trigger label, skipping`);
+              }
+            }

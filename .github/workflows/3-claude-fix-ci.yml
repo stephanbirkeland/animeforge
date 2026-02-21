@@ -1,0 +1,201 @@
+name: Claude Fix CI
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  fix:
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      startsWith(github.event.workflow_run.head_branch, 'claude/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: claude-fix-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: true
+    steps:
+      - name: Get PR info
+        id: pr-info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find the PR for this branch
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${context.payload.workflow_run.head_branch}`,
+              state: 'open'
+            });
+
+            if (prs.length === 0) {
+              core.setOutput('should_fix', 'false');
+              console.log('No open PR found for this branch');
+              return;
+            }
+
+            const pr = prs[0];
+            const labels = pr.labels.map(l => l.name);
+            console.log(`PR #${pr.number} labels: ${labels.join(', ')}`);
+
+            // Check retry count
+            if (labels.includes('fix-attempt-2')) {
+              // Already tried twice — give up
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: '🛑 CI has failed after 2 fix attempts. This needs human intervention.\n\nAdding `needs-human` label.'
+              });
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: ['needs-human']
+              });
+              core.setOutput('should_fix', 'false');
+              return;
+            }
+
+            // Determine which attempt this is
+            let attempt = 1;
+            if (labels.includes('fix-attempt-1')) {
+              attempt = 2;
+            }
+
+            core.setOutput('should_fix', 'true');
+            core.setOutput('pr_number', pr.number.toString());
+            core.setOutput('attempt', attempt.toString());
+
+      - name: Check if last commit is already a fix
+        if: steps.pr-info.outputs.should_fix == 'true'
+        id: loop-guard
+        run: |
+          # Skip if the last commit was already from github-actions (prevent fix loops)
+          LAST_AUTHOR=$(git log -1 --format='%an' origin/${{ github.event.workflow_run.head_branch }} 2>/dev/null || echo "unknown")
+          if [ "$LAST_AUTHOR" = "github-actions[bot]" ]; then
+            echo "Last commit was already a fix attempt — skipping to prevent loop"
+            echo "should_continue=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_continue=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/checkout@v4
+        if: steps.pr-info.outputs.should_fix == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ secrets.PAT }}
+
+      - name: Set up Git identity
+        if: steps.pr-info.outputs.should_fix == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - uses: astral-sh/setup-uv@v4
+        if: steps.pr-info.outputs.should_fix == 'true'
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        if: steps.pr-info.outputs.should_fix == 'true'
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        if: steps.pr-info.outputs.should_fix == 'true'
+        run: uv sync --dev
+
+      - name: Install Claude Code
+        if: steps.pr-info.outputs.should_fix == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Get failure logs
+        if: steps.pr-info.outputs.should_fix == 'true'
+        id: logs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            const { data: jobs } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId
+            });
+
+            let failureLogs = '';
+            for (const job of jobs.jobs) {
+              if (job.conclusion === 'failure') {
+                const { data: log } = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  job_id: job.id
+                });
+                failureLogs += `\n## ${job.name}\n${log.substring(log.length - 3000)}`;
+              }
+            }
+
+            // Write to file to avoid shell escaping issues
+            const fs = require('fs');
+            fs.writeFileSync('/tmp/failure-logs.txt', failureLogs);
+
+      - name: Fix CI failures
+        if: steps.pr-info.outputs.should_fix == 'true'
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          FAILURE_LOGS=$(cat /tmp/failure-logs.txt)
+
+          claude --model claude-sonnet-4-6 --max-turns 15 <<PROMPT_EOF
+          CI has failed on this branch. Here are the failure logs:
+
+          ${FAILURE_LOGS}
+
+          ## Instructions
+
+          1. Read CLAUDE.md to understand project conventions
+          2. Analyze the failure logs to identify what's broken
+          3. Fix ONLY the failing code — do not refactor or improve other code
+          4. Run \`uv run ruff check src/\` to verify lint passes
+          5. Run \`uv run pytest\` to verify tests pass
+          6. Commit your fix with a message like "fix: resolve CI failure — [brief description]"
+          7. Do NOT push — the workflow will handle that
+
+          Important: Make minimal, targeted fixes. Do not refactor.
+          PROMPT_EOF
+
+      - name: Push fix and update labels
+        if: steps.pr-info.outputs.should_fix == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          git push origin ${{ github.event.workflow_run.head_branch }}
+
+      - name: Update attempt label
+        if: steps.pr-info.outputs.should_fix == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
+            const attempt = parseInt('${{ steps.pr-info.outputs.attempt }}');
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: [`fix-attempt-${attempt}`]
+            });
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `🔧 CI fix attempt ${attempt}/2 pushed. Waiting for CI to re-run...`
+            });
