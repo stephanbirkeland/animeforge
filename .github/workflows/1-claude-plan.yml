@@ -39,7 +39,7 @@ jobs:
           ISSUE_EOF
           )
 
-          claude --model claude-sonnet-4-6 --max-turns 10 --print <<PROMPT_EOF > /tmp/plan-output.md
+          claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions <<PROMPT_EOF > /tmp/plan-output.md
           You are analyzing a GitHub issue to create an implementation plan.
 
           ## Issue #${{ github.event.issue.number }}: ${ISSUE_TITLE}

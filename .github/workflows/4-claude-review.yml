@@ -40,7 +40,7 @@ jobs:
         run: |
           PR_DIFF=$(cat /tmp/pr-diff.txt)
 
-          claude --model claude-sonnet-4-6 --max-turns 5 --print <<PROMPT_EOF > /tmp/review-output.md
+          claude --model claude-sonnet-4-6 --max-turns 5 --print --dangerously-skip-permissions <<PROMPT_EOF > /tmp/review-output.md
           You are reviewing a pull request for the AnimeForge project.
 
           ## PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}

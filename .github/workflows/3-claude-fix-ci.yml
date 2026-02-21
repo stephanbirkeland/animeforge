@@ -153,7 +153,7 @@ jobs:
         run: |
           FAILURE_LOGS=$(cat /tmp/failure-logs.txt)
 
-          claude --model claude-sonnet-4-6 --max-turns 15 <<PROMPT_EOF
+          claude --model claude-sonnet-4-6 --max-turns 15 --dangerously-skip-permissions <<PROMPT_EOF
           CI has failed on this branch. Here are the failure logs:
 
           ${FAILURE_LOGS}

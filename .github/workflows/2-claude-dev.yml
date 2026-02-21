@@ -82,7 +82,7 @@ jobs:
           # Get the plan from issue comments
           PLAN_COMMENT=$(gh issue view ${{ github.event.issue.number }} --json comments --jq '.comments[-1].body' 2>/dev/null || echo "No plan found")
 
-          claude --model claude-opus-4-6 --max-turns 25 <<PROMPT_EOF
+          claude --model claude-opus-4-6 --max-turns 25 --dangerously-skip-permissions <<PROMPT_EOF
           You are implementing a feature for the AnimeForge project.
 
           ## Issue #${{ github.event.issue.number }}: ${ISSUE_TITLE}
