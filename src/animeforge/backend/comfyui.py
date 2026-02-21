@@ -197,6 +197,13 @@ class ComfyUIBackend:
             self._add_controlnet(
                 workflow, request, ckpt_id, pos_id, neg_id, sampler_id, node_id
             )
+            node_id += 3  # ControlNet adds 3 nodes
+
+        # Add IP-Adapter if specified
+        if request.ip_adapter_image and request.ip_adapter_model:
+            self._add_ip_adapter(
+                workflow, request, ckpt_id, sampler_id, node_id
+            )
 
         return workflow
 
@@ -242,6 +249,48 @@ class ComfyUIBackend:
         # Rewire sampler to use ControlNet-applied conditioning
         workflow[sampler_id]["inputs"]["positive"] = [cn_apply_id, 0]
         workflow[sampler_id]["inputs"]["negative"] = [cn_apply_id, 1]
+
+    def _add_ip_adapter(
+        self,
+        workflow: dict,
+        request: GenerationRequest,
+        ckpt_id: str,
+        sampler_id: str,
+        node_id: int,
+    ) -> None:
+        """Insert IP-Adapter nodes into the workflow."""
+        node_id += 1
+
+        # Load the IP-Adapter model
+        ipa_load_id = str(node_id)
+        workflow[ipa_load_id] = {
+            "class_type": "IPAdapterModelLoader",
+            "inputs": {"ipadapter_file": request.ip_adapter_model},
+        }
+        node_id += 1
+
+        # Load the reference image
+        ipa_img_id = str(node_id)
+        workflow[ipa_img_id] = {
+            "class_type": "LoadImage",
+            "inputs": {"image": str(request.ip_adapter_image)},
+        }
+        node_id += 1
+
+        # Apply IP-Adapter to the model
+        ipa_apply_id = str(node_id)
+        workflow[ipa_apply_id] = {
+            "class_type": "IPAdapterApply",
+            "inputs": {
+                "ipadapter": [ipa_load_id, 0],
+                "model": [ckpt_id, 0],
+                "image": [ipa_img_id, 0],
+                "weight": request.ip_adapter_weight,
+            },
+        }
+
+        # Rewire sampler to use the IP-Adapter-modified model
+        workflow[sampler_id]["inputs"]["model"] = [ipa_apply_id, 0]
 
     async def _wait_for_result(
         self,

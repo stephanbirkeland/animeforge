@@ -8,6 +8,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import (
     Button,
+    Checkbox,
     DataTable,
     Footer,
     Header,
@@ -138,6 +139,10 @@ class SceneEditorScreen(Screen):
                 yield Label("Z-Index")
                 yield Input(value="1", placeholder="1", id="zone-z")
 
+                yield Label("Character Animations (comma-separated)")
+                yield Input(placeholder="idle, typing", id="zone-anims")
+                yield Checkbox("Interactive", value=True, id="zone-interactive")
+
                 with Horizontal(classes="toolbar"):
                     yield Button("Save Zone", id="btn-save-zone", classes="success")
                     yield Button("Cancel", id="btn-cancel-zone")
@@ -150,7 +155,7 @@ class SceneEditorScreen(Screen):
 
     def on_mount(self) -> None:
         table = self.query_one("#zone-table", DataTable)
-        table.add_columns("ID", "Name", "X", "Y", "W", "H", "Z")
+        table.add_columns("ID", "Name", "X", "Y", "W", "H", "Z", "Anims", "Interactive")
         table.cursor_type = "row"
 
         # Load current project scene if available
@@ -180,6 +185,8 @@ class SceneEditorScreen(Screen):
                 str(zone.bounds.width),
                 str(zone.bounds.height),
                 str(zone.z_index),
+                ", ".join(zone.character_animations),
+                "Yes" if zone.interactive else "No",
             )
 
         self.query_one("#scene-time", Select).value = scene.default_time
@@ -220,6 +227,8 @@ class SceneEditorScreen(Screen):
         self.query_one("#zone-w", Input).value = "200"
         self.query_one("#zone-h", Input).value = "200"
         self.query_one("#zone-z", Input).value = "1"
+        self.query_one("#zone-anims", Input).value = ""
+        self.query_one("#zone-interactive", Checkbox).value = True
         self.query_one("#zone-id", Input).focus()
 
     def _edit_selected_zone(self) -> None:
@@ -238,6 +247,8 @@ class SceneEditorScreen(Screen):
             self.query_one("#zone-w", Input).value = str(cells[4])
             self.query_one("#zone-h", Input).value = str(cells[5])
             self.query_one("#zone-z", Input).value = str(cells[6])
+            self.query_one("#zone-anims", Input).value = str(cells[7])
+            self.query_one("#zone-interactive", Checkbox).value = str(cells[8]).lower() == "yes"
             self._editing_row_key = row_key
         except Exception:  # noqa: BLE001
             self._set_status("Select a zone row first.")
@@ -256,6 +267,8 @@ class SceneEditorScreen(Screen):
         w = self.query_one("#zone-w", Input).value
         h = self.query_one("#zone-h", Input).value
         z = self.query_one("#zone-z", Input).value
+        anims = self.query_one("#zone-anims", Input).value
+        interactive = self.query_one("#zone-interactive", Checkbox).value
 
         table = self.query_one("#zone-table", DataTable)
 
@@ -265,7 +278,7 @@ class SceneEditorScreen(Screen):
             table.remove_row(editing_key)
             self._editing_row_key = None
 
-        table.add_row(zone_id, zone_name, x, y, w, h, z)
+        table.add_row(zone_id, zone_name, x, y, w, h, z, anims, "Yes" if interactive else "No")
         self._set_status(f"Zone '{zone_name}' saved.")
         self._clear_zone_fields()
 
@@ -277,6 +290,8 @@ class SceneEditorScreen(Screen):
         self.query_one("#zone-w", Input).value = "200"
         self.query_one("#zone-h", Input).value = "200"
         self.query_one("#zone-z", Input).value = "1"
+        self.query_one("#zone-anims", Input).value = ""
+        self.query_one("#zone-interactive", Checkbox).value = True
         self._editing_row_key = None
 
     def action_delete_zone(self) -> None:
@@ -366,8 +381,17 @@ class SceneEditorScreen(Screen):
         from animeforge.models import Rect, Scene, Zone
 
         scene_name = self.query_one("#scene-name", Input).value.strip() or "Untitled"
-        width = int(self.query_one("#scene-width", Input).value or 1920)
-        height = int(self.query_one("#scene-height", Input).value or 1080)
+
+        try:
+            width = int(self.query_one("#scene-width", Input).value or 1920)
+        except ValueError:
+            self._set_status("Invalid value for Width — must be an integer.")
+            return
+        try:
+            height = int(self.query_one("#scene-height", Input).value or 1080)
+        except ValueError:
+            self._set_status("Invalid value for Height — must be an integer.")
+            return
 
         time_select = self.query_one("#scene-time", Select)
         weather_select = self.query_one("#scene-weather", Select)
@@ -377,17 +401,43 @@ class SceneEditorScreen(Screen):
         table = self.query_one("#zone-table", DataTable)
         for row_key in table.rows:
             cells = table.get_row(row_key)
+            zone_label = str(cells[1]) or str(cells[0])
+            try:
+                bounds = Rect(
+                    x=float(cells[2]),
+                    y=float(cells[3]),
+                    width=float(cells[4]),
+                    height=float(cells[5]),
+                )
+            except ValueError:
+                self._set_status(
+                    f"Invalid coordinate in zone '{zone_label}' — X/Y/W/H must be numbers."
+                )
+                return
+            try:
+                z_index = int(cells[6])
+            except ValueError:
+                self._set_status(
+                    f"Invalid Z-Index in zone '{zone_label}' — must be an integer."
+                )
+                return
+
+            anims_raw = str(cells[7]).strip()
+            character_animations = (
+                [a.strip() for a in anims_raw.split(",") if a.strip()]
+                if anims_raw
+                else []
+            )
+            interactive = str(cells[8]).lower() == "yes"
+
             zones.append(
                 Zone(
                     id=str(cells[0]),
                     name=str(cells[1]),
-                    bounds=Rect(
-                        x=float(cells[2]),
-                        y=float(cells[3]),
-                        width=float(cells[4]),
-                        height=float(cells[5]),
-                    ),
-                    z_index=int(cells[6]),
+                    bounds=bounds,
+                    z_index=z_index,
+                    character_animations=character_animations,
+                    interactive=interactive,
                 )
             )
 

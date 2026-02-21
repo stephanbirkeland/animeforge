@@ -305,11 +305,40 @@ class GenerationScreen(Screen):
             task_fx.update_progress(10)
             fx_dir = output_dir / "effects"
             try:
-                generate_rain_sprites(fx_dir)
+                from animeforge.models import EffectDef
+                from animeforge.models.enums import EffectType, Season, Weather
+
+                rain_path = generate_rain_sprites(fx_dir)
+                proj.scene.effects.append(
+                    EffectDef(
+                        id="rain",
+                        type=EffectType.PARTICLE,
+                        weather_trigger=Weather.RAIN,
+                        sprite_sheet=rain_path,
+                    )
+                )
                 task_fx.update_progress(40)
-                generate_snow_sprites(fx_dir)
+
+                snow_path = generate_snow_sprites(fx_dir)
+                proj.scene.effects.append(
+                    EffectDef(
+                        id="snow",
+                        type=EffectType.PARTICLE,
+                        weather_trigger=Weather.SNOW,
+                        sprite_sheet=snow_path,
+                    )
+                )
                 task_fx.update_progress(70)
-                generate_leaf_sprites(fx_dir)
+
+                leaf_path = generate_leaf_sprites(fx_dir)
+                proj.scene.effects.append(
+                    EffectDef(
+                        id="leaves",
+                        type=EffectType.PARTICLE,
+                        season_trigger=Season.FALL,
+                        sprite_sheet=leaf_path,
+                    )
+                )
                 log.write(
                     f"[bold green]Completed:[/bold green] Effects — "
                     f"rain, snow, leaves -> {fx_dir}"

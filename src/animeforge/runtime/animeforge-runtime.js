@@ -1303,8 +1303,16 @@
         clearInterval(this._autoTimeInterval);
         this._autoTimeInterval = null;
       }
-      this._emitter.removeAll();
+      if (this._resizeObserver) {
+        this._resizeObserver.disconnect();
+        this._resizeObserver = null;
+      }
+      if (this._resizeFallback) {
+        window.removeEventListener('resize', this._resizeFallback);
+        this._resizeFallback = null;
+      }
       this._emitter.emit('stateChange', { state: 'destroyed' });
+      this._emitter.removeAll();
     }
 
     // ---- Internal -----------------------------------------------------------
@@ -1389,7 +1397,41 @@
         this.setAutoTime(true);
       }
 
+      // Observe container size changes and resize the canvas accordingly
+      this._setupResizeObserver();
+
       this._rafId = requestAnimationFrame(this._loop);
+    }
+
+    /**
+     * Set up a ResizeObserver (or window resize fallback) to keep the canvas
+     * dimensions in sync with its container.
+     * @private
+     */
+    _setupResizeObserver() {
+      const container = this._canvas.parentElement;
+      if (!container) return;
+
+      if (typeof ResizeObserver !== 'undefined') {
+        this._resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            const { width, height } = entry.contentRect;
+            if (width > 0 && height > 0) {
+              this.resize(Math.round(width), Math.round(height));
+            }
+          }
+        });
+        this._resizeObserver.observe(container);
+      } else {
+        // Fallback for environments without ResizeObserver
+        this._resizeFallback = () => {
+          const rect = container.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            this.resize(Math.round(rect.width), Math.round(rect.height));
+          }
+        };
+        window.addEventListener('resize', this._resizeFallback);
+      }
     }
 
     /**

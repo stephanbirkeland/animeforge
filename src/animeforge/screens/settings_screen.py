@@ -180,12 +180,43 @@ class SettingsScreen(Screen):
 
         config = load_config()
 
+        try:
+            port = int(self.query_one("#comfy-port", Input).value or 8188)
+        except ValueError:
+            self._set_status("Invalid Port — must be an integer.")
+            return
+        try:
+            gen_width = int(self.query_one("#gen-width", Input).value or 1024)
+        except ValueError:
+            self._set_status("Invalid Width — must be an integer.")
+            return
+        try:
+            gen_height = int(self.query_one("#gen-height", Input).value or 1024)
+        except ValueError:
+            self._set_status("Invalid Height — must be an integer.")
+            return
+        try:
+            gen_steps = int(self.query_one("#gen-steps", Input).value or 30)
+        except ValueError:
+            self._set_status("Invalid Steps — must be an integer.")
+            return
+        try:
+            gen_cfg = float(self.query_one("#gen-cfg", Input).value or 7.0)
+        except ValueError:
+            self._set_status("Invalid CFG Scale — must be a number.")
+            return
+        try:
+            gen_seed = int(self.query_one("#gen-seed", Input).value or -1)
+        except ValueError:
+            self._set_status("Invalid Seed — must be an integer.")
+            return
+
         data = {
             "config_dir": self.query_one("#dir-config", Input).value,
             "projects_dir": self.query_one("#dir-projects", Input).value,
             "comfyui": {
                 "host": self.query_one("#comfy-host", Input).value,
-                "port": int(self.query_one("#comfy-port", Input).value or 8188),
+                "port": port,
                 "use_ssl": self.query_one("#comfy-ssl", Switch).value,
             },
             "models": {
@@ -197,12 +228,12 @@ class SettingsScreen(Screen):
                 "vae": self.query_one("#model-vae", Input).value,
             },
             "generation": {
-                "width": int(self.query_one("#gen-width", Input).value or 1024),
-                "height": int(self.query_one("#gen-height", Input).value or 1024),
-                "steps": int(self.query_one("#gen-steps", Input).value or 30),
-                "cfg_scale": float(self.query_one("#gen-cfg", Input).value or 7.0),
+                "width": gen_width,
+                "height": gen_height,
+                "steps": gen_steps,
+                "cfg_scale": gen_cfg,
                 "sampler": self.query_one("#gen-sampler", Input).value,
-                "seed": int(self.query_one("#gen-seed", Input).value or -1),
+                "seed": gen_seed,
             },
         }
 

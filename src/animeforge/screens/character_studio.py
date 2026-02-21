@@ -361,7 +361,11 @@ class CharacterStudioScreen(Screen):
 
         description = self.query_one("#char-description", Input).value.strip()
         ref_path = self.query_one("#char-ref-image", Input).value.strip()
-        ip_weight = float(self.query_one("#char-ip-weight", Input).value or 0.75)
+        try:
+            ip_weight = float(self.query_one("#char-ip-weight", Input).value or 0.75)
+        except ValueError:
+            self._set_status("Invalid IP-Adapter Weight — must be a number.")
+            return
         negative = self.query_one("#char-negative", Input).value.strip()
         default_select = self.query_one("#char-default-anim", Select)
         default_anim = (
@@ -379,13 +383,26 @@ class CharacterStudioScreen(Screen):
         anim_table = self.query_one("#anim-table", DataTable)
         for row_key in anim_table.rows:
             cells = anim_table.get_row(row_key)
+            anim_label = str(cells[1]) or str(cells[0])
+            try:
+                fps = int(cells[3])
+            except ValueError:
+                self._set_status(f"Invalid FPS in animation '{anim_label}' — must be an integer.")
+                return
+            try:
+                frame_count = int(cells[4])
+            except ValueError:
+                self._set_status(
+                    f"Invalid Frame Count in animation '{anim_label}' — must be an integer."
+                )
+                return
             animations.append(
                 AnimationDef(
                     id=str(cells[0]),
                     name=str(cells[1]),
                     zone_id=str(cells[2]),
-                    fps=int(cells[3]),
-                    frame_count=int(cells[4]),
+                    fps=fps,
+                    frame_count=frame_count,
                     pose_sequence=str(cells[5]),
                     loop=str(cells[6]).lower() == "yes",
                 )
@@ -396,11 +413,19 @@ class CharacterStudioScreen(Screen):
         trans_table = self.query_one("#transition-table", DataTable)
         for row_key in trans_table.rows:
             cells = trans_table.get_row(row_key)
+            try:
+                duration_ms = int(cells[2])
+            except ValueError:
+                self._set_status(
+                    f"Invalid Duration in transition '{cells[0]}' -> '{cells[1]}'"
+                    " — must be an integer."
+                )
+                return
             transitions.append(
                 StateTransition(
                     from_state=str(cells[0]),
                     to_state=str(cells[1]),
-                    duration_ms=int(cells[2]),
+                    duration_ms=duration_ms,
                     auto=str(cells[3]).lower() == "yes",
                 )
             )

@@ -8,10 +8,11 @@
 </head>
 <body>
     <div id="animeforge-container">
-        <canvas id="animeforge-canvas" width="{{ width }}" height="{{ height }}"></canvas>
+        <canvas id="animeforge-canvas" width="{{ width }}" height="{{ height }}" role="img" aria-label="{{ scene_name }} - animated scene">Your browser does not support the canvas element.</canvas>
+        <div id="af-error" style="display:none; color: #d13438; background: #fde7e9; padding: 12px 16px; border-radius: 4px; margin: 12px 0; font-family: sans-serif;">Failed to load the scene. Please try refreshing the page.</div>
         <div id="animeforge-controls">
             <div class="control-group">
-                <label>Time</label>
+                <label for="af-time">Time</label>
                 <select id="af-time">
                     {% for time in times %}
                     <option value="{{ time }}"{{ ' selected' if time == default_time else '' }}>{{ time|capitalize }}</option>
@@ -19,7 +20,7 @@
                 </select>
             </div>
             <div class="control-group">
-                <label>Weather</label>
+                <label for="af-weather">Weather</label>
                 <select id="af-weather">
                     {% for weather in weathers %}
                     <option value="{{ weather }}"{{ ' selected' if weather == default_weather else '' }}>{{ weather|capitalize }}</option>
@@ -27,7 +28,7 @@
                 </select>
             </div>
             <div class="control-group">
-                <label>Season</label>
+                <label for="af-season">Season</label>
                 <select id="af-season">
                     {% for season in seasons %}
                     <option value="{{ season }}"{{ ' selected' if season == default_season else '' }}>{{ season|capitalize }}</option>
@@ -35,7 +36,7 @@
                 </select>
             </div>
             <div class="control-group">
-                <label>Animation</label>
+                <label for="af-animation">Animation</label>
                 <select id="af-animation">
                     {% for anim in animations %}
                     <option value="{{ anim.id }}"{{ ' selected' if anim.id == default_animation else '' }}>{{ anim.name }}</option>
@@ -54,7 +55,17 @@
     <script>
         (async function() {
             const scene = new AnimeForge.Scene('#animeforge-canvas', 'scene.json');
-            await scene.load();
+
+            try {
+                await scene.load();
+            } catch (err) {
+                var errorDiv = document.getElementById('af-error');
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Failed to load scene: ' + (err.message || 'Unknown error');
+                }
+                return;
+            }
 
             // Expose to console for API testing
             window.scene = scene;

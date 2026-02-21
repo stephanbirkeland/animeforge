@@ -146,9 +146,15 @@ class ExportScreen(Screen):
         fmt_select = self.query_one("#export-format", Select)
         image_format = fmt_select.value if fmt_select.value != Select.BLANK else "webp"
 
+        try:
+            image_quality = int(self.query_one("#export-quality", Input).value or 85)
+        except ValueError:
+            self._set_status("Invalid Image Quality — must be an integer (1-100).")
+            raise
+
         return ExportConfig(
             output_dir=Path(self.query_one("#export-dir", Input).value),
-            image_quality=int(self.query_one("#export-quality", Input).value or 85),
+            image_quality=image_quality,
             image_format=image_format,
             include_retina=self.query_one("#export-retina", Checkbox).value,
             include_preview=self.query_one("#export-preview", Checkbox).value,
@@ -167,7 +173,10 @@ class ExportScreen(Screen):
             self._set_status("No project loaded. Go to Dashboard first.")
             return
 
-        export_config = self._build_export_config()
+        try:
+            export_config = self._build_export_config()
+        except ValueError:
+            return
         self._running = True
         self._cancel_event = asyncio.Event()
         self._set_status("Export started...")
