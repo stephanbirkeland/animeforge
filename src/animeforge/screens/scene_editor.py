@@ -287,16 +287,42 @@ class SceneEditorScreen(Screen):
 
     # ── Background ───────────────────────────────────────────
     def _import_background(self) -> None:
+        import shutil
         from pathlib import Path
+
+        from animeforge.models import Layer
 
         path_str = self.query_one("#bg-image-path", Input).value.strip()
         if not path_str:
             self._set_status("Enter a background image path first.")
             return
-        path = Path(path_str).expanduser()
+        path = Path(path_str).expanduser().resolve()
         if not path.exists():
             self._set_status(f"File not found: {path}")
             return
+
+        proj = getattr(self.app, "_current_project", None)
+        if proj is None:
+            self._set_status("No project loaded. Create a project first.")
+            return
+
+        # Copy image into project directory
+        if proj.project_dir:
+            bg_dir = Path(proj.project_dir) / "backgrounds"
+            bg_dir.mkdir(parents=True, exist_ok=True)
+            dest = bg_dir / path.name
+            shutil.copy2(path, dest)
+        else:
+            dest = path
+
+        # Add or update the base background layer on the scene
+        if proj.scene.layers:
+            base_layer = min(proj.scene.layers, key=lambda ly: ly.z_index)
+            base_layer.image_path = dest
+        else:
+            layer = Layer(id="bg-main", z_index=0, image_path=dest)
+            proj.scene.layers.append(layer)
+
         self._set_status(f"Background imported: {path.name}")
 
     def _generate_background(self) -> None:
@@ -304,8 +330,21 @@ class SceneEditorScreen(Screen):
         if not prompt:
             self._set_status("Enter a text prompt for background generation.")
             return
+
+        # Store prompt on project so generation knows what to generate
+        proj = getattr(self.app, "_current_project", None)
+        if proj is None:
+            self._set_status("No project loaded. Create a project first.")
+            return
+
+        # Use the prompt as the scene name if it's still untitled
+        scene_name = self.query_one("#scene-name", Input).value.strip()
+        if not scene_name:
+            proj.scene.name = prompt[:60]
+        else:
+            proj.scene.name = scene_name
+
         self._set_status(f"Background generation queued: '{prompt[:50]}...'")
-        # In a real implementation this would push to the generation screen
         app: AnimeForgeApp = self.app  # type: ignore[assignment]
         app.navigate("generation")
 

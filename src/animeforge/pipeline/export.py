@@ -11,7 +11,7 @@ from jinja2 import Environment, PackageLoader
 from PIL import Image
 
 from animeforge.config import AppConfig, load_config
-from animeforge.models import ExportConfig, Project, TimeOfDay
+from animeforge.models import ExportConfig, Project
 from animeforge.pipeline.assembly import optimize_image
 
 logger = logging.getLogger(__name__)
@@ -187,8 +187,27 @@ def export_project(
 
     # index.html
     index_tpl = env.get_template("index.html.jinja2")
+
+    # Build lists the template expects for <select> controls.
+    animations = []
+    default_animation = "idle"
+    if project.character:
+        animations = [
+            {"id": a.id, "name": a.name} for a in project.character.animations
+        ]
+        default_animation = project.character.default_animation
+
     index_html = index_tpl.render(
-        project_name=project.name,
+        scene_name=project.name,
+        width=scene.width,
+        height=scene.height,
+        times=[t.value for t in config.times],
+        weathers=[w.value for w in config.weathers],
+        seasons=[s.value for s in config.seasons],
+        animations=animations,
+        default_time=scene.default_time.value,
+        default_weather=scene.default_weather.value,
+        default_animation=default_animation,
         scene=scene_data,
         runtime_js=RUNTIME_JS_FILENAME,
     )

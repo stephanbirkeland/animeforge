@@ -148,11 +148,17 @@ class ImagePreview(Widget):
         lines.append(bot)
         return "\n".join(lines)
 
-    @staticmethod
-    def _get_dimensions() -> tuple[int, int] | None:
-        """Attempt to read image dimensions, return None if PIL unavailable."""
-        # Not importing at module level to avoid hard dependency
-        return None
+    def _get_dimensions(self) -> tuple[int, int] | None:
+        """Read image dimensions using PIL."""
+        if self._image_path is None or not self._image_path.exists():
+            return None
+        try:
+            from PIL import Image
+
+            with Image.open(self._image_path) as img:
+                return img.size
+        except Exception:  # noqa: BLE001
+            return None
 
     @staticmethod
     def _format_size(size_bytes: int) -> str:

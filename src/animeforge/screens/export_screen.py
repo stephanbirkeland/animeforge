@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
@@ -24,7 +25,9 @@ from textual.widgets import (
 from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
-    from animeforge.app import AnimeForgeApp
+    from animeforge.models import ExportConfig, Project
+
+logger = logging.getLogger(__name__)
 
 
 class ExportScreen(Screen):
@@ -120,7 +123,7 @@ class ExportScreen(Screen):
             case "btn-cancel-export":
                 self._cancel_export()
 
-    def _build_export_config(self):  # type: ignore[return]
+    def _build_export_config(self) -> ExportConfig:
         """Build ExportConfig from UI state."""
         from pathlib import Path
 
@@ -168,7 +171,7 @@ class ExportScreen(Screen):
         self._running = True
         self._cancel_event = asyncio.Event()
         self._set_status("Export started...")
-        asyncio.ensure_future(self._run_export(proj, export_config))
+        self.run_worker(self._run_export(proj, export_config), exclusive=True, thread=True)
 
     def _cancel_export(self) -> None:
         if not self._running:
@@ -178,59 +181,51 @@ class ExportScreen(Screen):
             self._cancel_event.set()
         self._set_status("Cancelling export...")
 
-    async def _run_export(self, proj, export_config) -> None:  # type: ignore[type-arg]
-        """Simulate export pipeline with progress."""
+    async def _run_export(self, proj: Project, export_config: ExportConfig) -> None:
+        """Run the real export pipeline."""
+        from animeforge.pipeline.export import export_project
+
         log = self.query_one("#export-log", RichLog)
         bar = self.query_one("#export-bar", ProgressBar)
 
-        n_times = len(export_config.times)
-        n_weathers = len(export_config.weathers)
-        n_seasons = len(export_config.seasons)
-        total_variants = max(1, n_times * n_weathers * n_seasons)
-
         log.write(
-            f"[bold cyan]Exporting[/bold cyan] {total_variants} variant(s) "
-            f"to {export_config.output_dir}"
+            f"[bold cyan]Exporting[/bold cyan] to {export_config.output_dir}"
         )
         log.write(
             f"  Format: {export_config.image_format} @ quality {export_config.image_quality}"
         )
         log.write(
-            f"  Times: {n_times}, Weathers: {n_weathers}, Seasons: {n_seasons}"
+            f"  Times: {len(export_config.times)}, "
+            f"Weathers: {len(export_config.weathers)}, "
+            f"Seasons: {len(export_config.seasons)}"
         )
 
-        completed = 0
-        for tod in export_config.times:
-            for weather in export_config.weathers:
-                for season in export_config.seasons:
-                    if self._cancel_event and self._cancel_event.is_set():
-                        break
+        bar.update(progress=10)
 
-                    variant = f"{tod.value}-{weather.value}-{season.value}"
-                    log.write(f"  Rendering variant: {variant}")
-
-                    # Simulate rendering time
-                    await asyncio.sleep(0.1)
-
-                    completed += 1
-                    pct = (completed / total_variants) * 100
-                    bar.update(progress=pct)
-
-                if self._cancel_event and self._cancel_event.is_set():
-                    break
-            if self._cancel_event and self._cancel_event.is_set():
-                break
-
-        self._running = False
         if self._cancel_event and self._cancel_event.is_set():
+            self._running = False
             log.write("[bold yellow]Export cancelled.[/bold yellow]")
             self._set_status("Export cancelled.")
-        else:
+            return
+
+        try:
+            bar.update(progress=30)
+            log.write("[bold cyan]Running export pipeline...[/bold cyan]")
+
+            output_path = export_project(proj, export_config)
+
+            bar.update(progress=100)
             log.write(
                 f"[bold green]Export complete![/bold green] "
-                f"{completed} variants written to {export_config.output_dir}"
+                f"Output written to {output_path}"
             )
             self._set_status("Export complete!")
+        except Exception as exc:
+            logger.exception("Export failed")
+            log.write(f"[bold red]Export failed:[/bold red] {exc}")
+            self._set_status(f"Export failed: {exc}")
+        finally:
+            self._running = False
 
     def _set_status(self, text: str) -> None:
         label = self.query_one("#export-status", Label)
