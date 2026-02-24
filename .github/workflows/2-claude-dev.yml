@@ -29,6 +29,29 @@ jobs:
         with:
           token: ${{ secrets.PAT }}
 
+      - name: Write issue context to files
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT }}
+          script: |
+            const fs = require('fs');
+            const issue = context.payload.issue;
+            fs.writeFileSync('/tmp/issue-title.txt', issue.title);
+            fs.writeFileSync('/tmp/issue-body.txt', issue.body || '');
+            fs.writeFileSync('/tmp/issue-number.txt', String(issue.number));
+
+            // Get the plan from the last bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              per_page: 50
+            });
+            const planComment = comments
+              .filter(c => c.body.startsWith('## Implementation Plan'))
+              .pop();
+            fs.writeFileSync('/tmp/plan-comment.txt', planComment ? planComment.body : 'No plan found');
+
       - name: Set up Git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -43,9 +66,9 @@ jobs:
       - name: Update labels
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.PAT }}
           script: |
             const issue = context.issue.number;
-            // Remove approved, add in-development
             try {
               await github.rest.issues.removeLabel({
                 owner: context.repo.owner, repo: context.repo.repo,
@@ -73,19 +96,15 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
-          ISSUE_TITLE="${{ github.event.issue.title }}"
-          ISSUE_BODY=$(cat <<'ISSUE_EOF'
-          ${{ github.event.issue.body }}
-          ISSUE_EOF
-          )
+          ISSUE_TITLE=$(cat /tmp/issue-title.txt)
+          ISSUE_BODY=$(cat /tmp/issue-body.txt)
+          ISSUE_NUM=$(cat /tmp/issue-number.txt)
+          PLAN_COMMENT=$(cat /tmp/plan-comment.txt)
 
-          # Get the plan from issue comments
-          PLAN_COMMENT=$(gh issue view ${{ github.event.issue.number }} --json comments --jq '.comments[-1].body' 2>/dev/null || echo "No plan found")
-
-          claude --model claude-opus-4-6 --max-turns 25 --dangerously-skip-permissions <<PROMPT_EOF
+          cat <<PROMPT_EOF | claude --model claude-opus-4-6 --max-turns 25 --dangerously-skip-permissions -p -
           You are implementing a feature for the AnimeForge project.
 
-          ## Issue #${{ github.event.issue.number }}: ${ISSUE_TITLE}
+          ## Issue #${ISSUE_NUM}: ${ISSUE_TITLE}
 
           ${ISSUE_BODY}
 
@@ -112,12 +131,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT }}
         run: |
+          ISSUE_NUM=$(cat /tmp/issue-number.txt)
+          ISSUE_TITLE=$(cat /tmp/issue-title.txt)
+
+          # Check if there are commits to push
+          if git diff --quiet origin/main; then
+            echo "No changes to push"
+            exit 0
+          fi
+
           git push -u origin "$BRANCH"
 
           PR_URL=$(gh pr create \
-            --title "feat: ${{ github.event.issue.title }}" \
-            --body "$(cat <<'EOF'
-          Resolves #${{ github.event.issue.number }}
+            --title "feat: ${ISSUE_TITLE}" \
+            --body "$(cat <<EOF
+          Resolves #${ISSUE_NUM}
 
           ## Summary
           Automated implementation by Claude Code.
@@ -127,7 +155,7 @@ jobs:
           - [ ] Coverage maintained or improved
           - [ ] Manual review of changes
 
-          🤖 Generated with [Claude Code](https://claude.ai/code)
+          Generated with [Claude Code](https://claude.ai/code)
           EOF
           )" \
             --head "$BRANCH" \
