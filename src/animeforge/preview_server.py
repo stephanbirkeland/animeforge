@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import websockets
-import websockets.server
+import websockets.asyncio.server
 
 from animeforge.backend.base import GenerationRequest, ProgressCallback
 from animeforge.backend.mock import MockBackend
@@ -45,7 +45,7 @@ class PreviewServer:
     def __init__(self, http_port: int = 8765, ws_port: int = 8766) -> None:
         self.http_port = http_port
         self.ws_port = ws_port
-        self._clients: set[websockets.server.ServerConnection] = set()
+        self._clients: set[websockets.asyncio.server.ServerConnection] = set()
         self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._http_server: http.server.HTTPServer | None = None
 
@@ -73,7 +73,7 @@ class PreviewServer:
             msg = await self._queue.get()
             await self.broadcast(msg)
 
-    async def _ws_handler(self, websocket: websockets.server.ServerConnection) -> None:
+    async def _ws_handler(self, websocket: websockets.asyncio.server.ServerConnection) -> None:
         """Handle a single WebSocket connection."""
         self._clients.add(websocket)
         try:
