@@ -13,6 +13,7 @@ from animeforge.pipeline.consistency import (
 from animeforge.pipeline.effect_gen import (
     generate_leaf_sprites,
     generate_rain_sprites,
+    generate_sakura_sprites,
     generate_snow_sprites,
 )
 from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence
@@ -100,3 +101,21 @@ def test_generate_leaf_sprites():
         path = generate_leaf_sprites(Path(tmpdir))
         assert path.exists()
         assert path.suffix == ".png"
+
+
+def test_generate_sakura_sprites():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = generate_sakura_sprites(Path(tmpdir))
+        assert path.exists()
+        assert path.suffix == ".png"
+
+
+def test_generate_sakura_sprites_dimensions():
+    from PIL import Image
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = generate_sakura_sprites(
+            Path(tmpdir), frame_count=6, frame_width=64, frame_height=64
+        )
+        img = Image.open(path)
+        assert img.size == (64 * 6, 64)

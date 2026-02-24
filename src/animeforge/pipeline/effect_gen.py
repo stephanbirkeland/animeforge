@@ -197,3 +197,83 @@ def generate_leaf_sprites(
     out_path = output_dir / "leaf_sprites.png"
     strip.save(out_path, "PNG")
     return out_path
+
+
+def generate_sakura_sprites(
+    output_dir: Path,
+    *,
+    frame_count: int = 8,
+    frame_width: int = 128,
+    frame_height: int = 128,
+    seed: int = 789,
+) -> Path:
+    """Generate a horizontal sakura petal sprite strip.
+
+    Each frame draws small cherry blossom petals in soft pink tones that
+    drift horizontally with gentle rotation for a wind-blown spring feel.
+
+    Returns the path to the saved sprite strip PNG.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rng = random.Random(seed)
+
+    strip = Image.new("RGBA", (frame_width * frame_count, frame_height), (0, 0, 0, 0))
+
+    petal_colours = [
+        (255, 183, 197),  # pink
+        (255, 209, 220),  # light pink
+        (255, 230, 235),  # pale pink
+    ]
+
+    num_petals = rng.randint(15, 25)
+    petals: list[dict[str, object]] = [
+        {
+            "x": rng.uniform(0, frame_width),
+            "y": rng.uniform(0, frame_height),
+            "colour": rng.choice(petal_colours),
+            "alpha": rng.randint(140, 210),
+            "size": rng.uniform(2.0, 4.5),
+            "angle_start": rng.uniform(0, 2 * math.pi),
+            "drift_x": rng.uniform(1.5, 4.0),
+            "fall_speed": rng.uniform(0.8, 2.5),
+            "spin_rate": rng.uniform(0.1, 0.35),
+        }
+        for _ in range(num_petals)
+    ]
+
+    for frame_idx in range(frame_count):
+        frame = Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(frame)
+
+        for petal in petals:
+            _x = cast("float", petal["x"])
+            _drift_x = cast("float", petal["drift_x"])
+            cx = (_x + _drift_x * frame_idx) % frame_width
+            _y = cast("float", petal["y"])
+            _fall_speed = cast("float", petal["fall_speed"])
+            cy = (_y + _fall_speed * frame_idx) % frame_height
+            s = cast("float", petal["size"])
+            _angle_start = cast("float", petal["angle_start"])
+            _spin_rate = cast("float", petal["spin_rate"])
+            angle = _angle_start + _spin_rate * frame_idx
+
+            # 4-point polygon petal shape — narrower than leaves.
+            dx = math.cos(angle) * s
+            dy = math.sin(angle) * s
+            half = s * 0.35
+
+            points = [
+                (cx - dx, cy - dy),
+                (cx + half * math.cos(angle + 1.5), cy + half * math.sin(angle + 1.5)),
+                (cx + dx, cy + dy),
+                (cx + half * math.cos(angle - 1.5), cy + half * math.sin(angle - 1.5)),
+            ]
+            rgb = cast("tuple[int, int, int]", petal["colour"])
+            alpha = cast("int", petal["alpha"])
+            draw.polygon(points, fill=(*rgb, alpha))
+
+        strip.paste(frame, (frame_idx * frame_width, 0))
+
+    out_path = output_dir / "sakura_sprites.png"
+    strip.save(out_path, "PNG")
+    return out_path
