@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -22,6 +22,7 @@ from animeforge.models.enums import AnimationState
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.binding import BindingType
     from textual.widgets._data_table import RowKey
 
 
@@ -30,7 +31,7 @@ class CharacterStudioScreen(Screen[None]):
 
     name = "character_studio"
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         ("a", "add_animation", "Add Animation"),
         ("delete", "delete_animation", "Delete Animation"),
     ]
