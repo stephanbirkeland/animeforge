@@ -33,6 +33,7 @@ dependencies = [
     "websockets>=12.0",
     "rich>=13.0",
     "tomli-w>=1.0",
+    "jsonschema>=4.18",
 ]
 
 [dependency-groups]
@@ -54,6 +55,7 @@ packages = ["src/animeforge"]
 "src/animeforge/runtime" = "animeforge/runtime"
 "src/animeforge/templates" = "animeforge/templates"
 "src/animeforge/poses" = "animeforge/poses"
+"src/animeforge/schemas" = "animeforge/schemas"
 
 [tool.ruff]
 target-version = "py311"
