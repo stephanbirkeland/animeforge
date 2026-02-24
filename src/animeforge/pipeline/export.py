@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,133 @@ logger = logging.getLogger(__name__)
 # Expected runtime JS that ships with the package.
 RUNTIME_JS_FILENAME = "animeforge-runtime.js"
 SCENE_LOADER_JS_FILENAME = "scene-loader.js"
+
+
+# ---------------------------------------------------------------------------
+# Dry-run validation
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class DryRunCheck:
+    """A single validation result for the dry-run report."""
+
+    label: str
+    passed: bool
+    message: str = ""
+
+
+@dataclass
+class DryRunResult:
+    """Aggregated result of a dry-run export validation."""
+
+    checks: list[DryRunCheck] = field(default_factory=list)
+    output_dir: Path = field(default_factory=lambda: Path("output"))
+    estimated_files: int = 0
+
+    @property
+    def valid(self) -> bool:
+        return all(c.passed for c in self.checks)
+
+
+def validate_export(
+    project: Project,
+    config: ExportConfig,
+    *,
+    app_config: AppConfig | None = None,
+) -> DryRunResult:
+    """Validate all export inputs without writing any files.
+
+    Returns a :class:`DryRunResult` describing what *would* be exported.
+    """
+    if app_config is None:
+        app_config = load_config()
+
+    checks: list[DryRunCheck] = []
+    scene = project.scene
+
+    # 1. Project loaded
+    checks.append(DryRunCheck(label=f"Project loaded ({project.name})", passed=True))
+
+    # 2. Background layers
+    bg_count = len(scene.layers)
+    checks.append(
+        DryRunCheck(
+            label=f"{bg_count} background layer{'s' if bg_count != 1 else ''} found",
+            passed=True,
+        )
+    )
+
+    # 3. Character
+    if project.character:
+        anim_count = len(project.character.animations)
+        checks.append(
+            DryRunCheck(
+                label=(
+                    f'Character "{project.character.name}" '
+                    f"with {anim_count} animation{'s' if anim_count != 1 else ''}"
+                ),
+                passed=True,
+            )
+        )
+
+    # 4. Effects
+    fx_count = len(scene.effects)
+    if fx_count:
+        fx_ids = ", ".join(e.id for e in scene.effects)
+        checks.append(
+            DryRunCheck(
+                label=f"{fx_count} effect{'s' if fx_count != 1 else ''} ({fx_ids})",
+                passed=True,
+            )
+        )
+
+    # 5. Runtime JS available
+    runtime_dir = Path(__file__).resolve().parent.parent / "runtime"
+    runtime_js = runtime_dir / RUNTIME_JS_FILENAME
+    loader_js = runtime_dir / SCENE_LOADER_JS_FILENAME
+    js_ok = runtime_js.exists() and loader_js.exists()
+    missing_js: list[str] = []
+    if not runtime_js.exists():
+        missing_js.append(RUNTIME_JS_FILENAME)
+    if not loader_js.exists():
+        missing_js.append(SCENE_LOADER_JS_FILENAME)
+    checks.append(
+        DryRunCheck(
+            label="Runtime JS available",
+            passed=js_ok,
+            message=f"Missing: {', '.join(missing_js)}" if missing_js else "",
+        )
+    )
+
+    # 6. Templates available
+    template_dir = Path(__file__).resolve().parent.parent / "templates"
+    template_ok = (template_dir / "index.html.jinja2").exists()
+    checks.append(
+        DryRunCheck(
+            label="Templates available",
+            passed=template_ok,
+            message="Missing: index.html.jinja2" if not template_ok else "",
+        )
+    )
+
+    # Estimated file count
+    bg_files = sum(len(layer.time_variants) for layer in scene.layers)
+    char_files = (
+        sum(1 for a in project.character.animations if a.sprite_sheet is not None)
+        if project.character
+        else 0
+    )
+    fx_files = sum(1 for e in scene.effects if e.sprite_sheet is not None)
+    fixed_files = 5  # scene.json, index.html, scene.css, runtime JS, scene-loader JS
+    preview_file = 1 if config.include_preview else 0
+    estimated = bg_files + char_files + fx_files + fixed_files + preview_file
+
+    return DryRunResult(
+        checks=checks,
+        output_dir=config.output_dir,
+        estimated_files=estimated,
+    )
 
 
 def export_project(
