@@ -94,6 +94,37 @@ def generate(
 
 
 @app.command()
+def check() -> None:
+    """Check ComfyUI backend connectivity and report status."""
+    import asyncio
+
+    from animeforge.backend.comfyui import ComfyUIBackend
+    from animeforge.config import load_config
+
+    config = load_config()
+    backend = ComfyUIBackend(config.comfyui)
+    url = config.comfyui.base_url
+
+    async def _run() -> None:
+        await backend.connect()
+        try:
+            available = await backend.is_available()
+            if available:
+                models = await backend.get_models()
+                typer.echo(f"ComfyUI: connected ({url})")
+                typer.echo(f"Models: {len(models)} available")
+                typer.echo("Status: ready")
+            else:
+                typer.echo(f"ComfyUI: unreachable ({url})")
+                typer.echo("Status: offline \u2014 start ComfyUI to generate assets")
+                raise typer.Exit(1)
+        finally:
+            await backend.disconnect()
+
+    asyncio.run(_run())
+
+
+@app.command()
 def export(
     project_path: Annotated[Path, typer.Argument(help="Path to project directory or JSON")],
     output: Annotated[
