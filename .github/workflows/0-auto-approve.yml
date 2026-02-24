@@ -25,7 +25,7 @@ jobs:
       - name: Evaluate and approve easy wins
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT }}
         run: |
           # Find all issues with "planned" label (have a plan, awaiting approval)
           ISSUES=$(gh issue list --label "planned" --state open --json number,title,labels --jq '

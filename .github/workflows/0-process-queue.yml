@@ -17,6 +17,7 @@ jobs:
       - name: Process queued issues and PRs
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.PAT }}
           script: |
             // Find all issues/PRs with the "queued" label
             const { data: items } = await github.rest.issues.listForRepo({
