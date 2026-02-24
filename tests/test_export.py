@@ -3,9 +3,11 @@
 import json
 from pathlib import Path
 
+import jinja2
 import pytest
 
 from animeforge.models import ExportConfig, Project, Scene
+from animeforge.pipeline import export as export_module
 from animeforge.pipeline.export import export_project
 
 
@@ -110,3 +112,24 @@ def test_export_scene_json_has_zones(_populated_project: Project, tmp_path: Path
     assert "bounds" not in zone
     assert zone["type"] == "character"
     assert zone["scale"] == 1
+
+
+def test_css_template_syntax_error_propagates(
+    _populated_project: Project, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    """TemplateSyntaxError in scene.css.jinja2 must NOT be silently swallowed."""
+    original_env_class = export_module.Environment
+
+    class _BadCSSEnv(original_env_class):
+        def get_template(self, name, *a, **kw):
+            if name == "scene.css.jinja2":
+                raise jinja2.TemplateSyntaxError(
+                    message="unexpected '{'", lineno=1, name=name, filename=name,
+                )
+            return super().get_template(name, *a, **kw)
+
+    monkeypatch.setattr(export_module, "Environment", _BadCSSEnv)
+
+    config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
+    with pytest.raises(jinja2.TemplateSyntaxError):
+        export_project(_populated_project, config)
