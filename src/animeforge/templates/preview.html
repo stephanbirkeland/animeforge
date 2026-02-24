@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AnimeForge Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  h1 { font-size: 1.2rem; margin-bottom: 12px; color: #a78bfa; }
+  canvas {
+    border: 1px solid #333;
+    background: #111;
+    max-width: 90vw;
+    max-height: 70vh;
+  }
+  #progress-wrap {
+    width: 512px;
+    max-width: 90vw;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #a78bfa;
+    transition: width 0.15s ease;
+  }
+  #status {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+<h1>AnimeForge Preview</h1>
+<canvas id="preview" width="512" height="512"></canvas>
+<div id="progress-wrap"><div id="progress-bar"></div></div>
+<div id="status">Connecting...</div>
+<script>
+(function() {
+  var canvas = document.getElementById("preview");
+  var ctx = canvas.getContext("2d");
+  var bar = document.getElementById("progress-bar");
+  var status = document.getElementById("status");
+  var wsPort = new URLSearchParams(window.location.search).get("ws") || "8766";
+  var ws = new WebSocket("ws://localhost:" + wsPort);
+
+  ws.onopen = function() {
+    status.textContent = "Connected. Waiting for generation...";
+  };
+
+  ws.onmessage = function(event) {
+    var msg = JSON.parse(event.data);
+    if (msg.type === "progress") {
+      var pct = (msg.step / msg.total) * 100;
+      bar.style.width = pct + "%";
+      status.textContent = msg.status + " (" + msg.step + "/" + msg.total + ")";
+    } else if (msg.type === "complete") {
+      bar.style.width = "100%";
+      status.textContent = "Done";
+      var img = new Image();
+      img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = msg.image;
+    }
+  };
+
+  ws.onclose = function() {
+    status.textContent = "Disconnected";
+  };
+
+  ws.onerror = function() {
+    status.textContent = "Connection error";
+  };
+})();
+</script>
+</body>
+</html>

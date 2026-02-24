@@ -113,6 +113,31 @@ def export(
 
 
 @app.command()
+def preview(
+    prompt: Annotated[
+        str, typer.Argument(help="Generation prompt")
+    ] = "lo-fi anime girl studying, cozy room",
+    port: Annotated[int, typer.Option("--port", "-p", help="HTTP port")] = 8765,
+    ws_port: Annotated[int, typer.Option("--ws-port", help="WebSocket port")] = 8766,
+    no_browser: Annotated[
+        bool, typer.Option("--no-browser", help="Don't auto-open browser")
+    ] = False,
+) -> None:
+    """Start a live preview server for mock generation."""
+    import asyncio
+
+    from animeforge.preview_server import PreviewServer
+
+    server = PreviewServer(http_port=port, ws_port=ws_port)
+    typer.echo(f"Preview server at http://localhost:{port}")
+    typer.echo("Press Ctrl+C to stop")
+    try:
+        asyncio.run(server.run(prompt, open_browser=not no_browser))
+    except KeyboardInterrupt:
+        typer.echo("\nStopped.")
+
+
+@app.command()
 def serve(
     directory: Annotated[
         Path, typer.Argument(help="Directory to serve")
