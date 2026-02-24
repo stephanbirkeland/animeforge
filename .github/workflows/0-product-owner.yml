@@ -1,0 +1,234 @@
+name: Product Owner
+
+on:
+  schedule:
+    # Run at 16:30 UTC (17:30 CET) weekdays — after work hours, before dev kicks off
+    - cron: "30 16 * * 1-5"
+    # Run at 09:30 UTC (10:30 CET) on Saturdays — weekend planning
+    - cron: "30 9 * * 6"
+  workflow_dispatch:
+    inputs:
+      focus_area:
+        description: "Optional focus area (e.g., 'testing', 'performance', 'docs')"
+        required: false
+        type: string
+      max_issues:
+        description: "Maximum issues to create (1-5)"
+        required: false
+        default: "3"
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync --dev
+
+      - name: Gather project metrics
+        id: metrics
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "=== Gathering metrics ==="
+
+          # Test coverage
+          uv run pytest --cov=animeforge --cov-report=json:coverage.json -q 2>/dev/null || true
+          COVERAGE=$(python3 -c "import json; d=json.load(open('coverage.json')); print(f\"{d['totals']['percent_covered']:.1f}\")" 2>/dev/null || echo "unknown")
+          echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
+
+          # Test count
+          TEST_COUNT=$(uv run pytest --collect-only -q 2>/dev/null | tail -1 | grep -oE '[0-9]+' | head -1 || echo "0")
+          echo "test_count=$TEST_COUNT" >> "$GITHUB_OUTPUT"
+
+          # TODO/FIXME/HACK count
+          TODO_COUNT=$(grep -rn "TODO\|FIXME\|HACK\|XXX" src/animeforge/ --include="*.py" 2>/dev/null | wc -l | tr -d ' ')
+          echo "todo_count=$TODO_COUNT" >> "$GITHUB_OUTPUT"
+
+          # Files with no docstring on module level
+          UNDOCUMENTED=$(find src/animeforge -name "*.py" ! -name "__init__.py" ! -name "__main__.py" -exec sh -c 'head -3 "$1" | grep -qL "\"\"\"" && echo "$1"' _ {} \; 2>/dev/null | wc -l | tr -d ' ')
+          echo "undocumented=$UNDOCUMENTED" >> "$GITHUB_OUTPUT"
+
+          # Line count
+          LINES=$(find src/animeforge -name "*.py" -exec cat {} + | wc -l | tr -d ' ')
+          echo "lines=$LINES" >> "$GITHUB_OUTPUT"
+
+          # Open issues and PRs
+          OPEN_ISSUES=$(gh issue list --state open --json number --jq 'length')
+          OPEN_PRS=$(gh pr list --state open --json number --jq 'length')
+          echo "open_issues=$OPEN_ISSUES" >> "$GITHUB_OUTPUT"
+          echo "open_prs=$OPEN_PRS" >> "$GITHUB_OUTPUT"
+
+          # Existing issue titles (to avoid duplicates)
+          gh issue list --state open --limit 50 --json title --jq '.[].title' > /tmp/existing-issues.txt
+          gh issue list --state closed --limit 50 --json title --jq '.[].title' >> /tmp/existing-issues.txt
+
+          # Recent commits (last 7 days)
+          RECENT_COMMITS=$(git log --oneline --since="7 days ago" | head -20)
+          echo "$RECENT_COMMITS" > /tmp/recent-commits.txt
+
+          # Ruff warnings (non-selected rules that could be enabled)
+          uv run ruff check src/ --select ALL --statistics 2>/dev/null | head -30 > /tmp/ruff-extended.txt || true
+
+          # mypy status
+          uv run mypy src/ 2>&1 | tail -3 > /tmp/mypy-status.txt
+
+          echo "=== Metrics gathered ==="
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate improvement proposals
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          MAX_ISSUES="${{ inputs.max_issues || '3' }}"
+          FOCUS="${{ inputs.focus_area || '' }}"
+
+          EXISTING_ISSUES=$(cat /tmp/existing-issues.txt)
+          RECENT_COMMITS=$(cat /tmp/recent-commits.txt)
+          RUFF_EXTENDED=$(cat /tmp/ruff-extended.txt)
+          MYPY_STATUS=$(cat /tmp/mypy-status.txt)
+
+          claude --model claude-sonnet-4-6 --max-turns 15 --print --dangerously-skip-permissions <<PROMPT_EOF > /tmp/proposals.json
+          You are the Product Owner for the AnimeForge project — a Lo-fi Girl-style
+          interactive anime scene engine (Python TUI + AI generation + web export).
+
+          ## Project Metrics
+          - Coverage: ${{ steps.metrics.outputs.coverage }}%
+          - Tests: ${{ steps.metrics.outputs.test_count }}
+          - TODO/FIXME/HACK comments: ${{ steps.metrics.outputs.todo_count }}
+          - Source lines: ${{ steps.metrics.outputs.lines }}
+          - Open issues: ${{ steps.metrics.outputs.open_issues }}
+          - Open PRs: ${{ steps.metrics.outputs.open_prs }}
+
+          ## Recent Commits (last 7 days)
+          ${RECENT_COMMITS}
+
+          ## Extended Ruff Analysis
+          ${RUFF_EXTENDED}
+
+          ## Mypy Status
+          ${MYPY_STATUS}
+
+          ## Existing Issues (do NOT duplicate these)
+          ${EXISTING_ISSUES}
+
+          ${FOCUS:+## Focus Area: ${FOCUS}}
+
+          ## Instructions
+
+          Read the codebase (CLAUDE.md, src/animeforge/, tests/) and identify
+          up to ${MAX_ISSUES} concrete improvements. Prioritize by impact.
+
+          Categories to consider:
+          1. **Testing gaps** — modules with low/no coverage, missing edge case tests
+          2. **Code quality** — TODO/FIXME items, dead code, inconsistencies
+          3. **Robustness** — error handling, input validation, edge cases
+          4. **Performance** — obvious inefficiencies, unnecessary I/O
+          5. **Developer experience** — CLI ergonomics, error messages, config validation
+          6. **New features** — small, well-scoped features that add clear value
+
+          Rules:
+          - Each issue must be achievable in a single PR (< 5 files changed ideally)
+          - Do NOT propose issues that duplicate or overlap with existing ones
+          - Do NOT propose documentation-only changes
+          - Do NOT propose dependency upgrades unless there's a concrete bug/security reason
+          - Be specific — include file names, function names, line numbers where relevant
+          - Prefer issues that an AI agent can implement autonomously
+
+          Output valid JSON array with this exact structure:
+          [
+            {
+              "title": "Short descriptive title",
+              "body": "Full GitHub issue body in markdown",
+              "labels": ["claude"],
+              "priority": "low|medium|high"
+            }
+          ]
+
+          Output ONLY the JSON array, no other text.
+          PROMPT_EOF
+
+      - name: Create issues from proposals
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let proposals;
+            try {
+              let raw = fs.readFileSync('/tmp/proposals.json', 'utf8').trim();
+              // Strip markdown code fences if present
+              raw = raw.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+              proposals = JSON.parse(raw);
+            } catch (e) {
+              console.log('Failed to parse proposals:', e.message);
+              console.log('Raw content:', fs.readFileSync('/tmp/proposals.json', 'utf8'));
+              return;
+            }
+
+            if (!Array.isArray(proposals)) {
+              console.log('Proposals is not an array');
+              return;
+            }
+
+            // Get existing issue titles to double-check no duplicates
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            const existingTitles = new Set(
+              existingIssues.map(i => i.title.toLowerCase())
+            );
+
+            let created = 0;
+            for (const proposal of proposals) {
+              // Skip if title already exists (case-insensitive)
+              if (existingTitles.has(proposal.title.toLowerCase())) {
+                console.log(`Skipping duplicate: "${proposal.title}"`);
+                continue;
+              }
+
+              // Validate labels
+              const labels = (proposal.labels || ['claude']).filter(l =>
+                typeof l === 'string' && l.length > 0
+              );
+              if (!labels.includes('claude')) {
+                labels.push('claude');
+              }
+
+              const priority = proposal.priority || 'medium';
+              const body = proposal.body +
+                `\n\n---\n*Priority: ${priority} | Created by Product Owner agent*`;
+
+              try {
+                const { data: issue } = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: proposal.title,
+                  body: body,
+                  labels: labels
+                });
+                console.log(`Created issue #${issue.number}: ${proposal.title}`);
+                created++;
+              } catch (e) {
+                console.log(`Failed to create issue "${proposal.title}": ${e.message}`);
+              }
+            }
+
+            console.log(`Created ${created} new issues`);
