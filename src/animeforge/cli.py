@@ -131,11 +131,14 @@ def export(
         Path | None,
         typer.Option("--output", "-o", help="Output directory"),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Validate export without writing files"),
+    ] = False,
 ) -> None:
     """Export a project as a web package."""
     from animeforge.models.export import ExportConfig
     from animeforge.models.project import Project, ProjectLoadError
-    from animeforge.pipeline.export import export_project
 
     try:
         project = Project.load(project_path)
@@ -143,8 +146,26 @@ def export(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
     export_config = ExportConfig(output_dir=output or Path("output"))
-    export_project(project, export_config)
-    typer.echo(f"Exported to {export_config.output_dir}")
+
+    if dry_run:
+        from animeforge.pipeline.export import validate_export
+
+        result = validate_export(project, export_config)
+        typer.echo("Dry run: export validation")
+        for check in result.checks:
+            symbol = "\u2713" if check.passed else "\u2717"
+            typer.echo(f"  {symbol} {check.label}")
+            if not check.passed and check.message:
+                typer.echo(f"    {check.message}")
+        typer.echo(f"Export would write to: {result.output_dir}/")
+        typer.echo(f"Estimated files: {result.estimated_files}")
+        if not result.valid:
+            raise typer.Exit(1)
+    else:
+        from animeforge.pipeline.export import export_project
+
+        export_project(project, export_config)
+        typer.echo(f"Exported to {export_config.output_dir}")
 
 
 @app.command()
