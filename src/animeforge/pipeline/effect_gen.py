@@ -4,12 +4,23 @@ from __future__ import annotations
 
 import math
 import random
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypedDict
 
 from PIL import Image, ImageDraw
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+class _Leaf(TypedDict):
+    x: float
+    y: float
+    colour: tuple[int, int, int, int]
+    size: float
+    angle_start: float
+    drift_x: float
+    fall_speed: float
+    spin_rate: float
 
 
 def generate_rain_sprites(
@@ -147,17 +158,17 @@ def generate_leaf_sprites(
     ]
 
     num_leaves = 18
-    leaves: list[dict[str, object]] = [
-        {
-            "x": rng.uniform(0, frame_width),
-            "y": rng.uniform(0, frame_height),
-            "colour": rng.choice(leaf_colours),
-            "size": rng.uniform(3.0, 7.0),
-            "angle_start": rng.uniform(0, 2 * math.pi),
-            "drift_x": rng.uniform(-1.0, 1.0),
-            "fall_speed": rng.uniform(1.5, 4.0),
-            "spin_rate": rng.uniform(0.2, 0.8),
-        }
+    leaves: list[_Leaf] = [
+        _Leaf(
+            x=rng.uniform(0, frame_width),
+            y=rng.uniform(0, frame_height),
+            colour=rng.choice(leaf_colours),
+            size=rng.uniform(3.0, 7.0),
+            angle_start=rng.uniform(0, 2 * math.pi),
+            drift_x=rng.uniform(-1.0, 1.0),
+            fall_speed=rng.uniform(1.5, 4.0),
+            spin_rate=rng.uniform(0.2, 0.8),
+        )
         for _ in range(num_leaves)
     ]
 
@@ -166,16 +177,10 @@ def generate_leaf_sprites(
         draw = ImageDraw.Draw(frame)
 
         for leaf in leaves:
-            _x = cast("float", leaf["x"])
-            _drift_x = cast("float", leaf["drift_x"])
-            cx = (_x + _drift_x * frame_idx) % frame_width
-            _y = cast("float", leaf["y"])
-            _fall_speed = cast("float", leaf["fall_speed"])
-            cy = (_y + _fall_speed * frame_idx) % frame_height
-            s = cast("float", leaf["size"])
-            _angle_start = cast("float", leaf["angle_start"])
-            _spin_rate = cast("float", leaf["spin_rate"])
-            angle = _angle_start + _spin_rate * frame_idx
+            cx = (leaf["x"] + leaf["drift_x"] * frame_idx) % frame_width
+            cy = (leaf["y"] + leaf["fall_speed"] * frame_idx) % frame_height
+            s = leaf["size"]
+            angle = leaf["angle_start"] + leaf["spin_rate"] * frame_idx
 
             # Simple leaf: an ellipse rotated via bounding-box approximation.
             # We draw two overlapping ellipses to approximate a leaf shape.
@@ -189,8 +194,7 @@ def generate_leaf_sprites(
                 (cx + dx, cy + dy),
                 (cx + half * math.cos(angle - 1.3), cy + half * math.sin(angle - 1.3)),
             ]
-            colour = cast("tuple[int, int, int, int]", leaf["colour"])
-            draw.polygon(points, fill=colour)
+            draw.polygon(points, fill=leaf["colour"])
 
         strip.paste(frame, (frame_idx * frame_width, 0))
 
