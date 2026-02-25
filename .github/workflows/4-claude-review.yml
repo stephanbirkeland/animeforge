@@ -246,7 +246,7 @@ jobs:
         run: |
           claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p "$(cat /tmp/review-prompt.txt)" > /tmp/review-output.txt
 
-      - name: Parse verdict and act
+      - name: Post review comment
         if: steps.context.outputs.current_revision < 3
         id: verdict
         uses: actions/github-script@v7
@@ -277,35 +277,14 @@ jobs:
             });
 
             if (verdict === 'APPROVE') {
-              // Submit an approving review
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                event: 'APPROVE',
-                body: 'Automated senior review: All criteria passed. Approved for merge.'
-              });
-
-              // Add approved label
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr.number,
                 labels: ['review-approved']
               });
-
-              console.log(`PR #${pr.number} APPROVED`);
+              console.log(`PR #${pr.number} APPROVED — will submit review via GITHUB_TOKEN`);
             } else {
-              // Submit a changes-requested review
-              await github.rest.pulls.createReview({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                event: 'REQUEST_CHANGES',
-                body: 'Automated senior review: Issues found that need to be addressed.'
-              });
-
-              // Track revision count
               const revision = parseInt(fs.readFileSync('/tmp/current-revision.txt', 'utf8').trim()) + 1;
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
@@ -313,8 +292,33 @@ jobs:
                 issue_number: pr.number,
                 labels: [`revision-${revision}`]
               });
-
               console.log(`PR #${pr.number} REQUEST_CHANGES (revision ${revision})`);
+            }
+
+      - name: Submit PR review
+        if: steps.context.outputs.current_revision < 3
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const verdict = '${{ steps.verdict.outputs.verdict }}';
+            const pr = context.payload.pull_request;
+
+            if (verdict === 'APPROVE') {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'APPROVE',
+                body: 'Automated senior review: All criteria passed. Approved for merge.'
+              });
+            } else {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'REQUEST_CHANGES',
+                body: 'Automated senior review: Issues found that need to be addressed.'
+              });
             }
 
       - name: Auto-merge if approved
