@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -22,6 +22,7 @@ from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.binding import BindingType
     from textual.widgets._data_table import RowKey
 
     from animeforge.app import AnimeForgeApp
@@ -32,7 +33,7 @@ class SceneEditorScreen(Screen[None]):
 
     name = "scene_editor"
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         ("a", "add_zone", "Add Zone"),
         ("delete", "delete_zone", "Delete Zone"),
     ]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -21,6 +21,7 @@ from textual.widgets import (
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.binding import BindingType
 
     from animeforge.backend.base import ProgressCallback
     from animeforge.models import Project
@@ -75,7 +76,7 @@ class GenerationScreen(Screen[None]):
 
     name = "generation"
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         ("s", "start_generation", "Start"),
         ("c", "cancel_generation", "Cancel"),
     ]

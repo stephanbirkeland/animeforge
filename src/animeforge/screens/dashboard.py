@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
@@ -14,6 +14,7 @@ from animeforge.config import load_config
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+    from textual.binding import BindingType
 
     from animeforge.app import AnimeForgeApp
 
@@ -23,7 +24,7 @@ class DashboardScreen(Screen[None]):
 
     name = "dashboard"
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         ("n", "new_project", "New Project"),
         ("s", "open_settings", "Settings"),
         ("r", "refresh", "Refresh"),

@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Footer, Header
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from textual.binding import BindingType
+    from textual.screen import Screen
+
     from animeforge.models.project import Project
 
 
@@ -205,13 +210,13 @@ class AnimeForgeApp(App[None]):
     }
     """
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list[BindingType]] = [
         Binding("q", "quit", "Quit", show=True),
         Binding("d", "go_dashboard", "Dashboard", show=True),
         Binding("escape", "go_back", "Back", show=False),
     ]
 
-    SCREENS = {}  # populated in on_mount via install_screen
+    SCREENS: ClassVar[dict[str, type[Screen[Any]] | Callable[[], Screen[Any]]]] = {}
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
