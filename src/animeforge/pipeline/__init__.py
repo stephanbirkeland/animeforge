@@ -10,6 +10,7 @@ from animeforge.pipeline.consistency import (
 from animeforge.pipeline.effect_gen import (
     generate_leaf_sprites,
     generate_rain_sprites,
+    generate_sakura_sprites,
     generate_snow_sprites,
 )
 from animeforge.pipeline.export import export_project
@@ -25,6 +26,7 @@ __all__ = [
     "generate_character_animations",
     "generate_leaf_sprites",
     "generate_rain_sprites",
+    "generate_sakura_sprites",
     "generate_snow_sprites",
     "generate_scene_backgrounds",
     "interpolate_poses",
