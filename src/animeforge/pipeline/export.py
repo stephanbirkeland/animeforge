@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jinja2 import Environment, PackageLoader
+from jinja2 import Environment, PackageLoader, TemplateNotFound
 from PIL import Image
 
 from animeforge.config import AppConfig, load_config
@@ -277,11 +277,11 @@ def export_project(
         css_path = out / "scene.css"
         css_path.write_text(scene_css)
         logger.info("Rendered %s", css_path)
-    except Exception:
+    except TemplateNotFound:
         # Template may not exist yet; create a minimal fallback.
         css_path = out / "scene.css"
         css_path.write_text(_fallback_css(scene.width, scene.height))
-        logger.info("Wrote fallback %s", css_path)
+        logger.info("Wrote fallback %s (no scene.css.jinja2 template)", css_path)
 
     # ------------------------------------------------------------------
     # 7. (Optional) Generate a preview thumbnail
