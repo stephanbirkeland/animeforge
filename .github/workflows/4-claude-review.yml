@@ -244,7 +244,7 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p "$(cat /tmp/review-prompt.txt)" > /tmp/review-output.txt
+          cat /tmp/review-prompt.txt | claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p - > /tmp/review-output.txt
 
       - name: Post review comment
         if: steps.context.outputs.current_revision < 3
@@ -384,7 +384,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          claude --model claude-sonnet-4-6 --max-turns 20 --dangerously-skip-permissions -p "$(cat /tmp/fix-prompt.txt)"
+          cat /tmp/fix-prompt.txt | claude --model claude-sonnet-4-6 --max-turns 20 --dangerously-skip-permissions -p -
 
           # Push fixes if any changes were made
           if ! git diff --quiet HEAD; then
