@@ -7,9 +7,14 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 
 from animeforge.models.character import Character
 from animeforge.models.scene import Scene
+
+
+class ProjectLoadError(ValueError):
+    """Raised when a project file cannot be loaded."""
 
 
 class Project(BaseModel):
@@ -38,5 +43,21 @@ class Project(BaseModel):
         """Load project from JSON file."""
         if path.is_dir():
             path = path / "project.json"
-        data = json.loads(path.read_text())
-        return cls.model_validate(data)
+        try:
+            text = path.read_text()
+        except FileNotFoundError:
+            msg = f"project file not found: {path}"
+            raise ProjectLoadError(msg) from None
+        except PermissionError:
+            msg = f"permission denied reading project file: {path}"
+            raise ProjectLoadError(msg) from None
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            msg = f"project file contains invalid JSON: {exc}"
+            raise ProjectLoadError(msg) from None
+        try:
+            return cls.model_validate(data)
+        except PydanticValidationError as exc:
+            msg = f"project file has invalid structure: {exc}"
+            raise ProjectLoadError(msg) from None

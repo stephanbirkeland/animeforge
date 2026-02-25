@@ -103,10 +103,14 @@ def export(
 ) -> None:
     """Export a project as a web package."""
     from animeforge.models.export import ExportConfig
-    from animeforge.models.project import Project
+    from animeforge.models.project import Project, ProjectLoadError
     from animeforge.pipeline.export import export_project
 
-    project = Project.load(project_path)
+    try:
+        project = Project.load(project_path)
+    except ProjectLoadError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
     export_config = ExportConfig(output_dir=output or Path("output"))
     export_project(project, export_config)
     typer.echo(f"Exported to {export_config.output_dir}")

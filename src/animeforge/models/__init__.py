@@ -15,7 +15,7 @@ from animeforge.models.enums import (
 )
 from animeforge.models.export import ExportConfig
 from animeforge.models.pose import PoseFrame, PoseKeypoints, PoseSequence
-from animeforge.models.project import Project
+from animeforge.models.project import Project, ProjectLoadError
 from animeforge.models.scene import EffectDef, Layer, Rect, Scene, Zone
 
 __all__ = [
@@ -30,6 +30,7 @@ __all__ = [
     "PoseKeypoints",
     "PoseSequence",
     "Project",
+    "ProjectLoadError",
     "Rect",
     "Scene",
     "Season",

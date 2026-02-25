@@ -4,6 +4,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 from animeforge.models import (
     AnimationDef,
     Character,
@@ -14,6 +16,7 @@ from animeforge.models import (
     PoseKeypoints,
     PoseSequence,
     Project,
+    ProjectLoadError,
     Rect,
     Scene,
     Zone,
@@ -192,3 +195,24 @@ def test_project_with_character():
         loaded = Project.load(Path(tmpdir))
         assert loaded.character is not None
         assert loaded.character.name == "Girl"
+
+
+def test_project_load_file_not_found():
+    with pytest.raises(ProjectLoadError, match="project file not found"):
+        Project.load(Path("/nonexistent/path/project.json"))
+
+
+def test_project_load_invalid_json():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bad_file = Path(tmpdir) / "project.json"
+        bad_file.write_text("{not valid json!!")
+        with pytest.raises(ProjectLoadError, match="project file contains invalid JSON"):
+            Project.load(bad_file)
+
+
+def test_project_load_schema_mismatch():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        bad_file = Path(tmpdir) / "project.json"
+        bad_file.write_text(json.dumps({"unexpected": "data"}))
+        with pytest.raises(ProjectLoadError, match="project file has invalid structure"):
+            Project.load(bad_file)
