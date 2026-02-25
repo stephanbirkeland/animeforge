@@ -108,17 +108,13 @@ jobs:
         id: local-ci
         run: |
           set +e
-          LINT_OUTPUT=$(uv run ruff check src/ 2>&1)
+          uv run ruff check src/ > /tmp/lint-output.txt 2>&1
           LINT_EXIT=$?
-          TYPE_OUTPUT=$(uv run mypy src/ 2>&1)
+          uv run mypy src/ > /tmp/type-output.txt 2>&1
           TYPE_EXIT=$?
-          TEST_OUTPUT=$(uv run pytest --tb=short 2>&1)
+          uv run pytest --tb=short > /tmp/test-output.txt 2>&1
           TEST_EXIT=$?
           set -e
-
-          echo "$LINT_OUTPUT" > /tmp/lint-output.txt
-          echo "$TYPE_OUTPUT" > /tmp/type-output.txt
-          echo "$TEST_OUTPUT" > /tmp/test-output.txt
 
           if [ $LINT_EXIT -ne 0 ] || [ $TYPE_EXIT -ne 0 ] || [ $TEST_EXIT -ne 0 ]; then
             echo "ci_pass=false" >> "$GITHUB_OUTPUT"
@@ -134,6 +130,111 @@ jobs:
           git diff origin/main...HEAD > /tmp/pr-diff.txt
           git diff --stat origin/main...HEAD > /tmp/pr-stat.txt
 
+      - name: Build review prompt
+        if: steps.context.outputs.current_revision < 3
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const read = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } };
+
+            const prompt = `You are a **Senior Staff Engineer** acting as an automated PR reviewer for AnimeForge.
+            Your role is to evaluate PRs with the rigor of a tech lead at a top-tier company.
+            You make a final APPROVE or REQUEST_CHANGES verdict — no middle ground.
+
+            ## PR #${read('/tmp/pr-number.txt').trim()}: ${read('/tmp/pr-title.txt').trim()}
+
+            ${read('/tmp/pr-body.txt')}
+
+            ## File Changes
+            ${read('/tmp/pr-stat.txt')}
+
+            ## Diff
+            ${read('/tmp/pr-diff.txt')}
+
+            ## CI Results (ran locally)
+            CI passed: ${{ steps.local-ci.outputs.ci_pass }}
+
+            ### Lint output
+            ${read('/tmp/lint-output.txt')}
+
+            ### Type check output
+            ${read('/tmp/type-output.txt')}
+
+            ### Test output
+            ${read('/tmp/test-output.txt')}
+
+            ## Previous Review History (iteration ${read('/tmp/iteration-count.txt').trim()}, revision ${read('/tmp/current-revision.txt').trim()})
+            ${read('/tmp/review-history.txt')}
+
+            ## Your Task
+
+            First, read CLAUDE.md to understand project conventions.
+
+            Then evaluate this PR on these criteria (all must pass for approval):
+
+            ### 1. Correctness
+            - Does the code do what the PR claims?
+            - Are there logic errors, off-by-one errors, or race conditions?
+            - Are edge cases handled?
+
+            ### 2. Code Quality
+            - Does it follow the project's conventions (see CLAUDE.md)?
+            - Is the code clean, readable, and maintainable?
+            - Are there any code smells (god functions, deep nesting, magic numbers)?
+
+            ### 3. Testing
+            - Are there tests for new functionality?
+            - Do tests cover edge cases and error paths?
+            - Are tests meaningful (not just testing that Python works)?
+
+            ### 4. Security
+            - Any injection vulnerabilities, hardcoded secrets, or unsafe operations?
+            - Is user input properly validated?
+
+            ### 5. CI Status
+            - All lint, type checking, and tests must pass
+
+            ### 6. Scope
+            - Are changes focused on what the PR describes?
+            - No unrelated refactoring or feature creep?
+
+            ## Output Format
+
+            You MUST output EXACTLY this format:
+
+            VERDICT: APPROVE or REQUEST_CHANGES
+
+            ## Review Summary
+            (1-2 sentences on what this PR does)
+
+            ## Evaluation
+            | Criteria | Status | Notes |
+            |----------|--------|-------|
+            | Correctness | PASS/FAIL | brief note |
+            | Code Quality | PASS/FAIL | brief note |
+            | Testing | PASS/FAIL | brief note |
+            | Security | PASS/FAIL | brief note |
+            | CI Status | PASS/FAIL | brief note |
+            | Scope | PASS/FAIL | brief note |
+
+            ## Issues Found
+            (List specific issues if REQUEST_CHANGES, or "None" if APPROVE)
+            For each issue:
+            - **File:Line** — Description of the problem
+            - **Suggested fix** — How to fix it
+
+            ## Action Items
+            (Numbered list of what needs to change before re-review, or "Ready to merge" if APPROVE)
+
+            IMPORTANT:
+            - Be strict but fair. Don't nitpick style if the code follows project conventions.
+            - If CI fails, that's an automatic REQUEST_CHANGES.
+            - If this is a revision (iteration > 0), focus on whether previous issues were addressed.
+            - Only APPROVE if ALL criteria pass. Any FAIL = REQUEST_CHANGES.`;
+
+            fs.writeFileSync('/tmp/review-prompt.txt', prompt);
+
       - name: Install Claude Code
         if: steps.context.outputs.current_revision < 3
         run: npm install -g @anthropic-ai/claude-code
@@ -143,115 +244,7 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          PR_TITLE=$(cat /tmp/pr-title.txt)
-          PR_BODY=$(cat /tmp/pr-body.txt)
-          PR_NUM=$(cat /tmp/pr-number.txt)
-          PR_DIFF=$(cat /tmp/pr-diff.txt)
-          PR_STAT=$(cat /tmp/pr-stat.txt)
-          CI_PASS=${{ steps.local-ci.outputs.ci_pass }}
-          LINT_OUTPUT=$(cat /tmp/lint-output.txt)
-          TYPE_OUTPUT=$(cat /tmp/type-output.txt)
-          TEST_OUTPUT=$(cat /tmp/test-output.txt)
-          REVIEW_HISTORY=$(cat /tmp/review-history.txt)
-          ITERATION=$(cat /tmp/iteration-count.txt)
-          REVISION=$(cat /tmp/current-revision.txt)
-
-          cat <<PROMPT_EOF | claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p - > /tmp/review-output.txt
-          You are a **Senior Staff Engineer** acting as an automated PR reviewer for AnimeForge.
-          Your role is to evaluate PRs with the rigor of a tech lead at a top-tier company.
-          You make a final APPROVE or REQUEST_CHANGES verdict — no middle ground.
-
-          ## PR #${PR_NUM}: ${PR_TITLE}
-
-          ${PR_BODY}
-
-          ## File Changes
-          ${PR_STAT}
-
-          ## Diff
-          ${PR_DIFF}
-
-          ## CI Results (ran locally)
-          CI passed: ${CI_PASS}
-
-          ### Lint output
-          ${LINT_OUTPUT}
-
-          ### Type check output
-          ${TYPE_OUTPUT}
-
-          ### Test output
-          ${TEST_OUTPUT}
-
-          ## Previous Review History (iteration ${ITERATION}, revision ${REVISION})
-          ${REVIEW_HISTORY}
-
-          ## Your Task
-
-          First, read CLAUDE.md to understand project conventions.
-
-          Then evaluate this PR on these criteria (all must pass for approval):
-
-          ### 1. Correctness
-          - Does the code do what the PR claims?
-          - Are there logic errors, off-by-one errors, or race conditions?
-          - Are edge cases handled?
-
-          ### 2. Code Quality
-          - Does it follow the project's conventions (see CLAUDE.md)?
-          - Is the code clean, readable, and maintainable?
-          - Are there any code smells (god functions, deep nesting, magic numbers)?
-
-          ### 3. Testing
-          - Are there tests for new functionality?
-          - Do tests cover edge cases and error paths?
-          - Are tests meaningful (not just testing that Python works)?
-
-          ### 4. Security
-          - Any injection vulnerabilities, hardcoded secrets, or unsafe operations?
-          - Is user input properly validated?
-
-          ### 5. CI Status
-          - All lint, type checking, and tests must pass
-
-          ### 6. Scope
-          - Are changes focused on what the PR describes?
-          - No unrelated refactoring or feature creep?
-
-          ## Output Format
-
-          You MUST output EXACTLY this format:
-
-          VERDICT: APPROVE or REQUEST_CHANGES
-
-          ## Review Summary
-          (1-2 sentences on what this PR does)
-
-          ## Evaluation
-          | Criteria | Status | Notes |
-          |----------|--------|-------|
-          | Correctness | PASS/FAIL | brief note |
-          | Code Quality | PASS/FAIL | brief note |
-          | Testing | PASS/FAIL | brief note |
-          | Security | PASS/FAIL | brief note |
-          | CI Status | PASS/FAIL | brief note |
-          | Scope | PASS/FAIL | brief note |
-
-          ## Issues Found
-          (List specific issues if REQUEST_CHANGES, or "None" if APPROVE)
-          For each issue:
-          - **File:Line** — Description of the problem
-          - **Suggested fix** — How to fix it
-
-          ## Action Items
-          (Numbered list of what needs to change before re-review, or "Ready to merge" if APPROVE)
-
-          IMPORTANT:
-          - Be strict but fair. Don't nitpick style if the code follows project conventions.
-          - If CI fails, that's an automatic REQUEST_CHANGES.
-          - If this is a revision (iteration > 0), focus on whether previous issues were addressed.
-          - Only APPROVE if ALL criteria pass. Any FAIL = REQUEST_CHANGES.
-          PROMPT_EOF
+          claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p "$(cat /tmp/review-prompt.txt)" > /tmp/review-output.txt
 
       - name: Parse verdict and act
         if: steps.context.outputs.current_revision < 3
@@ -335,6 +328,43 @@ jobs:
           echo "Enabling auto-merge for PR #${PR_NUM}"
           gh pr merge "$PR_NUM" --auto --squash
 
+      - name: Build fix prompt
+        if: >
+          steps.context.outputs.current_revision < 3 &&
+          steps.verdict.outputs.verdict == 'REQUEST_CHANGES' &&
+          startsWith(github.event.pull_request.head.ref, 'claude/')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const read = (f) => { try { return fs.readFileSync(f, 'utf8'); } catch { return ''; } };
+            const prNum = read('/tmp/pr-number.txt').trim();
+            const review = read('/tmp/review-output.txt');
+
+            const prompt = `A senior engineer has reviewed this PR and requested changes.
+            You need to address ALL the issues identified in the review.
+
+            ## Review Feedback
+
+            ${review}
+
+            ## Instructions
+
+            1. Read CLAUDE.md to understand project conventions
+            2. Address EVERY issue listed in the "Issues Found" and "Action Items" sections
+            3. Run \`uv run ruff check src/\` and fix any lint errors
+            4. Run \`uv run mypy src/\` and fix any type errors
+            5. Run \`uv run pytest\` and fix any test failures
+            6. Commit your changes with: "fix: address review feedback for PR #${prNum}"
+            7. Do NOT push — the workflow handles that
+
+            Important:
+            - Fix ONLY what was flagged in the review
+            - Do not refactor unrelated code
+            - Make sure ALL action items are addressed`;
+
+            fs.writeFileSync('/tmp/fix-prompt.txt', prompt);
+
       - name: Fix issues if changes requested on claude branch
         if: >
           steps.context.outputs.current_revision < 3 &&
@@ -346,34 +376,11 @@ jobs:
         run: |
           PR_NUM=$(cat /tmp/pr-number.txt)
           BRANCH=$(cat /tmp/pr-branch.txt)
-          REVIEW=$(cat /tmp/review-output.txt)
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          cat <<PROMPT_EOF | claude --model claude-sonnet-4-6 --max-turns 20 --dangerously-skip-permissions -p -
-          A senior engineer has reviewed this PR and requested changes.
-          You need to address ALL the issues identified in the review.
-
-          ## Review Feedback
-
-          ${REVIEW}
-
-          ## Instructions
-
-          1. Read CLAUDE.md to understand project conventions
-          2. Address EVERY issue listed in the "Issues Found" and "Action Items" sections
-          3. Run \`uv run ruff check src/\` and fix any lint errors
-          4. Run \`uv run mypy src/\` and fix any type errors
-          5. Run \`uv run pytest\` and fix any test failures
-          6. Commit your changes with: "fix: address review feedback for PR #${PR_NUM}"
-          7. Do NOT push — the workflow handles that
-
-          Important:
-          - Fix ONLY what was flagged in the review
-          - Do not refactor unrelated code
-          - Make sure ALL action items are addressed
-          PROMPT_EOF
+          claude --model claude-sonnet-4-6 --max-turns 20 --dangerously-skip-permissions -p "$(cat /tmp/fix-prompt.txt)"
 
           # Push fixes if any changes were made
           if ! git diff --quiet HEAD; then
