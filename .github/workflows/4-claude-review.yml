@@ -244,7 +244,22 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          cat /tmp/review-prompt.txt | claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p - > /tmp/review-output.txt
+          claude --version || { echo "Claude Code not found"; exit 1; }
+
+          PROMPT_SIZE=$(wc -c < /tmp/review-prompt.txt)
+          echo "Prompt size: ${PROMPT_SIZE} bytes"
+          if [ "$PROMPT_SIZE" -gt 500000 ]; then
+            echo "WARNING: Prompt too large, truncating diff"
+            head -c 500000 /tmp/review-prompt.txt > /tmp/review-prompt-truncated.txt
+            printf '\n\n[DIFF TRUNCATED — too large for review]\n' >> /tmp/review-prompt-truncated.txt
+            mv /tmp/review-prompt-truncated.txt /tmp/review-prompt.txt
+          fi
+
+          cat /tmp/review-prompt.txt | claude --model claude-sonnet-4-6 --max-turns 10 --print --dangerously-skip-permissions -p - > /tmp/review-output.txt || {
+            EXIT_CODE=$?
+            echo "Claude Code exited with code $EXIT_CODE"
+            printf 'VERDICT: REQUEST_CHANGES\n\n## Review Summary\nAutomated review could not complete — Claude Code exited with code %s.\n\n## Action Items\n1. Check that CLAUDE_CODE_OAUTH_TOKEN is valid and not expired\n2. Re-run this workflow after fixing the token\n' "$EXIT_CODE" > /tmp/review-output.txt
+          }
 
       - name: Post review comment
         if: steps.context.outputs.current_revision < 3
