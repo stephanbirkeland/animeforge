@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, Static, Switch
+from textual.widgets import Button, Footer, Header, Input, Label, Select, Static, Switch
 
 from animeforge.config import load_config
 
@@ -16,8 +16,15 @@ if TYPE_CHECKING:
     from textual.app import ComposeResult
 
 
+_BACKEND_OPTIONS = [
+    ("ComfyUI (local GPU)", "comfyui"),
+    ("fal.ai (cloud)", "fal"),
+    ("Mock (testing)", "mock"),
+]
+
+
 class SettingsScreen(Screen[None]):
-    """Configure ComfyUI backend, model paths, and generation defaults."""
+    """Configure AI backend, model paths, and generation defaults."""
 
     name = "settings"
 
@@ -29,6 +36,16 @@ class SettingsScreen(Screen[None]):
             with Horizontal(classes="toolbar"):
                 yield Button("<- Back", id="btn-back", classes="back-btn")
                 yield Static("Settings", classes="screen-title")
+
+            # ── Active Backend ────────────────────────────────
+            with Vertical(classes="card"):
+                yield Static("Active Backend", classes="card-title")
+                yield Label("Generation Backend")
+                yield Select(
+                    _BACKEND_OPTIONS,
+                    value=config.active_backend,
+                    id="active-backend",
+                )
 
             # ── ComfyUI Backend ──────────────────────────────
             with Vertical(classes="card"):
@@ -49,6 +66,36 @@ class SettingsScreen(Screen[None]):
                 with Horizontal(classes="row"):
                     yield Label("Use SSL")
                     yield Switch(value=config.comfyui.use_ssl, id="comfy-ssl")
+
+            # ── fal.ai Backend ───────────────────────────────
+            with Vertical(classes="card"):
+                yield Static("fal.ai Backend", classes="card-title")
+
+                yield Label("API Key")
+                yield Input(
+                    value=config.fal.api_key,
+                    placeholder="Set FAL_KEY env var or enter key here",
+                    password=True,
+                    id="fal-api-key",
+                )
+                yield Label("Default Model")
+                yield Input(
+                    value=config.fal.default_model,
+                    placeholder="fal-ai/pony-v7",
+                    id="fal-default-model",
+                )
+                yield Label("ControlNet Endpoint")
+                yield Input(
+                    value=config.fal.controlnet_model,
+                    placeholder="fal-ai/sdxl-controlnet-union",
+                    id="fal-controlnet-model",
+                )
+                yield Label("IP-Adapter Endpoint")
+                yield Input(
+                    value=config.fal.ip_adapter_model,
+                    placeholder="fal-ai/ip-adapter-face-id",
+                    id="fal-ipadapter-model",
+                )
 
             # ── Model Paths ──────────────────────────────────
             with Vertical(classes="card"):
@@ -213,13 +260,23 @@ class SettingsScreen(Screen[None]):
             self._set_status("Invalid Seed — must be an integer.")
             return
 
-        data = {
+        backend_select = self.query_one("#active-backend", Select)
+        active_backend = str(backend_select.value) if backend_select.value else "comfyui"
+
+        data: dict[str, Any] = {
+            "active_backend": active_backend,
             "config_dir": self.query_one("#dir-config", Input).value,
             "projects_dir": self.query_one("#dir-projects", Input).value,
             "comfyui": {
                 "host": self.query_one("#comfy-host", Input).value,
                 "port": port,
                 "use_ssl": self.query_one("#comfy-ssl", Switch).value,
+            },
+            "fal": {
+                "api_key": self.query_one("#fal-api-key", Input).value,
+                "default_model": self.query_one("#fal-default-model", Input).value,
+                "controlnet_model": self.query_one("#fal-controlnet-model", Input).value,
+                "ip_adapter_model": self.query_one("#fal-ipadapter-model", Input).value,
             },
             "models": {
                 "checkpoint": self.query_one("#model-checkpoint", Input).value,
@@ -246,7 +303,6 @@ class SettingsScreen(Screen[None]):
             config_path.write_bytes(tomli_w.dumps(data).encode())
             self._set_status(f"Settings saved to {config_path}")
         except ImportError:
-            # Fallback: write a simple TOML manually
             self._write_toml_fallback(config_path, data)
             self._set_status(f"Settings saved to {config_path} (fallback writer)")
         except Exception as exc:  # noqa: BLE001
@@ -276,9 +332,14 @@ class SettingsScreen(Screen[None]):
 
         defaults = AppConfig()
 
+        self.query_one("#active-backend", Select).value = defaults.active_backend
         self.query_one("#comfy-host", Input).value = defaults.comfyui.host
         self.query_one("#comfy-port", Input).value = str(defaults.comfyui.port)
         self.query_one("#comfy-ssl", Switch).value = defaults.comfyui.use_ssl
+        self.query_one("#fal-api-key", Input).value = defaults.fal.api_key
+        self.query_one("#fal-default-model", Input).value = defaults.fal.default_model
+        self.query_one("#fal-controlnet-model", Input).value = defaults.fal.controlnet_model
+        self.query_one("#fal-ipadapter-model", Input).value = defaults.fal.ip_adapter_model
         self.query_one("#model-checkpoint", Input).value = defaults.models.checkpoint
         self.query_one("#model-openpose", Input).value = defaults.models.controlnet_openpose
         self.query_one("#model-depth", Input).value = defaults.models.controlnet_depth
@@ -297,7 +358,19 @@ class SettingsScreen(Screen[None]):
         self._set_status("Reset to defaults (not yet saved).")
 
     def _test_connection(self) -> None:
-        """Quick HTTP check against the ComfyUI backend."""
+        """Test connectivity for the selected backend."""
+        backend_select = self.query_one("#active-backend", Select)
+        active = str(backend_select.value) if backend_select.value else "comfyui"
+
+        if active == "mock":
+            self._set_status("Mock backend is always available.")
+            return
+
+        if active == "fal":
+            self._test_fal_connection()
+            return
+
+        # Default: test ComfyUI
         host = self.query_one("#comfy-host", Input).value
         port = self.query_one("#comfy-port", Input).value
         ssl = self.query_one("#comfy-ssl", Switch).value
@@ -320,6 +393,35 @@ class SettingsScreen(Screen[None]):
                 self._set_status("httpx not installed — cannot test connection.")
             except Exception as exc:  # noqa: BLE001
                 self._set_status(f"Connection failed: {exc}")
+
+        self.run_worker(_check())
+
+    def _test_fal_connection(self) -> None:
+        """Test fal.ai API connectivity."""
+        import os
+
+        api_key = self.query_one("#fal-api-key", Input).value or os.environ.get("FAL_KEY", "")
+        if not api_key:
+            self._set_status("fal.ai: No API key set (enter key or set FAL_KEY env var)")
+            return
+
+        self._set_status("Testing fal.ai connection...")
+
+        async def _check() -> None:
+            try:
+                import httpx
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.get(
+                        "https://queue.fal.run/fal-ai/pony-v7",
+                        headers={"Authorization": f"Key {api_key}"},
+                    )
+                    if resp.status_code == 401:
+                        self._set_status("fal.ai: Invalid API key")
+                    else:
+                        self._set_status("fal.ai: Connected successfully")
+            except Exception as exc:  # noqa: BLE001
+                self._set_status(f"fal.ai connection failed: {exc}")
 
         self.run_worker(_check())
 

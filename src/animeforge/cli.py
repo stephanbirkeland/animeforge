@@ -51,16 +51,31 @@ def generate(
         Path | None,
         typer.Option("--output", "-o", help="Output directory"),
     ] = None,
+    backend: Annotated[
+        str | None,
+        typer.Option("--backend", "-b", help="Backend: comfyui, fal, or mock"),
+    ] = None,
 ) -> None:
-    """Generate a single anime image via ComfyUI."""
+    """Generate a single anime image."""
     import asyncio
 
     from animeforge.backend.base import GenerationRequest
-    from animeforge.backend.comfyui import ComfyUIBackend
     from animeforge.config import load_config
 
     config = load_config()
-    backend = ComfyUIBackend(config.comfyui, output_dir=output)
+    backend_name = backend or config.active_backend
+
+    from animeforge.backend.comfyui import ComfyUIBackend
+    from animeforge.backend.fal_backend import FalBackend
+    from animeforge.backend.mock import MockBackend
+
+    gen_backend: ComfyUIBackend | FalBackend | MockBackend
+    if backend_name == "fal":
+        gen_backend = FalBackend(config.fal, output_dir=output)
+    elif backend_name == "mock":
+        gen_backend = MockBackend(output_dir=output)
+    else:
+        gen_backend = ComfyUIBackend(config.comfyui, output_dir=output)
 
     request = GenerationRequest(
         prompt=prompt,
@@ -71,15 +86,15 @@ def generate(
     )
 
     async def _run() -> None:
-        await backend.connect()
+        await gen_backend.connect()
         try:
-            available = await backend.is_available()
+            available = await gen_backend.is_available()
             if not available:
-                typer.echo("Error: ComfyUI is not available. Is it running?", err=True)
+                typer.echo(f"Error: {backend_name} backend is not available.", err=True)
                 raise typer.Exit(1)
 
-            typer.echo(f"Generating: {prompt}")
-            result = await backend.generate(
+            typer.echo(f"Generating ({backend_name}): {prompt}")
+            result = await gen_backend.generate(
                 request,
                 progress_callback=lambda step, total, status: typer.echo(
                     f"  {status} ({step}/{total})", nl=False
@@ -88,38 +103,62 @@ def generate(
             for img in result.images:
                 typer.echo(f"Saved: {img}")
         finally:
-            await backend.disconnect()
+            await gen_backend.disconnect()
 
     asyncio.run(_run())
 
 
 @app.command()
 def check() -> None:
-    """Check ComfyUI backend connectivity and report status."""
+    """Check backend connectivity and report status."""
     import asyncio
 
-    from animeforge.backend.comfyui import ComfyUIBackend
     from animeforge.config import load_config
 
     config = load_config()
-    backend = ComfyUIBackend(config.comfyui)
-    url = config.comfyui.base_url
+    backend_name = config.active_backend
 
     async def _run() -> None:
-        await backend.connect()
-        try:
-            available = await backend.is_available()
-            if available:
-                models = await backend.get_models()
-                typer.echo(f"ComfyUI: connected ({url})")
-                typer.echo(f"Models: {len(models)} available")
-                typer.echo("Status: ready")
-            else:
-                typer.echo(f"ComfyUI: unreachable ({url})")
-                typer.echo("Status: offline \u2014 start ComfyUI to generate assets")
-                raise typer.Exit(1)
-        finally:
-            await backend.disconnect()
+        if backend_name == "fal":
+            from animeforge.backend.fal_backend import FalBackend
+
+            fal_backend = FalBackend(config.fal)
+            await fal_backend.connect()
+            try:
+                available = await fal_backend.is_available()
+                if available:
+                    models = await fal_backend.get_models()
+                    typer.echo("fal.ai: connected")
+                    typer.echo(f"Endpoints: {', '.join(models)}")
+                    typer.echo("Status: ready")
+                else:
+                    typer.echo("fal.ai: unavailable (check FAL_KEY)")
+                    typer.echo("Status: offline")
+                    raise typer.Exit(1)
+            finally:
+                await fal_backend.disconnect()
+        elif backend_name == "mock":
+            typer.echo("Mock backend: always available")
+            typer.echo("Status: ready")
+        else:
+            from animeforge.backend.comfyui import ComfyUIBackend
+
+            url = config.comfyui.base_url
+            comfy_backend = ComfyUIBackend(config.comfyui)
+            await comfy_backend.connect()
+            try:
+                available = await comfy_backend.is_available()
+                if available:
+                    models = await comfy_backend.get_models()
+                    typer.echo(f"ComfyUI: connected ({url})")
+                    typer.echo(f"Models: {len(models)} available")
+                    typer.echo("Status: ready")
+                else:
+                    typer.echo(f"ComfyUI: unreachable ({url})")
+                    typer.echo("Status: offline \u2014 start ComfyUI to generate assets")
+                    raise typer.Exit(1)
+            finally:
+                await comfy_backend.disconnect()
 
     asyncio.run(_run())
 

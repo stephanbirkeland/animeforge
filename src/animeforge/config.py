@@ -59,6 +59,15 @@ class GenerationSettings(BaseSettings):
     seed: int = -1
 
 
+class FalSettings(BaseSettings):
+    """fal.ai cloud backend configuration."""
+
+    api_key: str = ""
+    default_model: str = "fal-ai/pony-v7"
+    controlnet_model: str = "fal-ai/sdxl-controlnet-union"
+    ip_adapter_model: str = "fal-ai/ip-adapter-face-id"
+
+
 class AppConfig(BaseSettings):
     """Root application configuration."""
 
@@ -67,9 +76,11 @@ class AppConfig(BaseSettings):
         env_nested_delimiter="__",
     )
 
+    active_backend: str = "comfyui"
     config_dir: Path = Field(default_factory=_default_config_dir)
     projects_dir: Path = Field(default_factory=_default_projects_dir)
     comfyui: ComfyUISettings = Field(default_factory=ComfyUISettings)
+    fal: FalSettings = Field(default_factory=FalSettings)
     models: ModelSettings = Field(default_factory=ModelSettings)
     generation: GenerationSettings = Field(default_factory=GenerationSettings)
 

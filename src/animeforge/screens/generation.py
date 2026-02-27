@@ -163,6 +163,7 @@ class GenerationScreen(Screen[None]):
     async def _run_generation(self, proj: Project) -> None:
         """Run the real generation pipeline with progress updates."""
         from animeforge.backend.comfyui import ComfyUIBackend
+        from animeforge.backend.fal_backend import FalBackend
         from animeforge.backend.mock import MockBackend
         from animeforge.config import load_config
         from animeforge.pipeline.effect_gen import (
@@ -179,21 +180,31 @@ class GenerationScreen(Screen[None]):
         output_dir = Path(proj.project_dir) / "generated" if proj.project_dir else Path("output")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # ── Set up backend ────────────────────────────────
-        backend: ComfyUIBackend | MockBackend
-        backend = ComfyUIBackend(config.comfyui, output_dir=output_dir)
+        # ── Set up backend based on config ────────────────
+        backend: ComfyUIBackend | FalBackend | MockBackend
+        backend_name = config.active_backend
         backend_available = False
 
-        log.write("[bold cyan]Connecting to ComfyUI...[/bold cyan]")
+        if backend_name == "fal":
+            log.write("[bold cyan]Connecting to fal.ai...[/bold cyan]")
+            backend = FalBackend(config.fal, output_dir=output_dir)
+        elif backend_name == "mock":
+            log.write("[bold cyan]Using MockBackend...[/bold cyan]")
+            backend = MockBackend(output_dir=output_dir)
+        else:
+            log.write("[bold cyan]Connecting to ComfyUI...[/bold cyan]")
+            backend = ComfyUIBackend(config.comfyui, output_dir=output_dir)
+
         try:
             await backend.connect()
             backend_available = await backend.is_available()
         except Exception as exc:
-            log.write(f"[bold yellow]ComfyUI connection failed:[/bold yellow] {exc}")
+            log.write(f"[bold yellow]{backend_name} connection failed:[/bold yellow] {exc}")
 
         if not backend_available:
             log.write(
-                "[bold yellow]ComfyUI unavailable — falling back to MockBackend.[/bold yellow]"
+                f"[bold yellow]{backend_name} unavailable "
+                f"— falling back to MockBackend.[/bold yellow]"
             )
             backend = MockBackend(output_dir=output_dir)
             await backend.connect()
