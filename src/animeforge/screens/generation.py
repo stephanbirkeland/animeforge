@@ -34,12 +34,12 @@ class _TaskRow(Horizontal):
 
     DEFAULT_CSS = """
     _TaskRow {
-        height: 3;
-        margin: 0 0 1 0;
+        height: 1;
+        margin: 0;
     }
 
     _TaskRow .task-label {
-        width: 30;
+        width: 26;
         color: #c4b5fd;
     }
 
@@ -48,7 +48,7 @@ class _TaskRow(Horizontal):
     }
 
     _TaskRow .task-pct {
-        width: 8;
+        width: 6;
         text-align: right;
         color: #a78bfa;
     }

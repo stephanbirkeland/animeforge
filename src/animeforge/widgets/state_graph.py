@@ -24,27 +24,27 @@ class StateGraph(Widget):
     StateGraph {
         layout: vertical;
         height: auto;
-        min-height: 10;
+        min-height: 8;
         background: #0c0a1a;
         border: round #4c1d95;
-        padding: 1 2;
-        margin: 1 0;
+        padding: 0 2;
+        margin: 1 0 0 0;
     }
 
     StateGraph .sg-title {
         text-style: bold;
         color: #a78bfa;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
     }
 
     StateGraph .sg-canvas {
         color: #c4b5fd;
-        min-height: 8;
+        min-height: 6;
     }
 
     StateGraph .sg-legend {
         color: #6d28d9;
-        margin-top: 1;
+        margin: 0;
     }
     """
 

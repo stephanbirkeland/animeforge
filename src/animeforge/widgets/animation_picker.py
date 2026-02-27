@@ -30,14 +30,14 @@ class AnimationPicker(Widget):
         height: auto;
         background: #1e1b4b;
         border: round #4c1d95;
-        padding: 1 2;
-        margin: 1 0;
+        padding: 0 2 1 2;
+        margin: 1 0 0 0;
     }
 
     AnimationPicker .ap-title {
         text-style: bold;
         color: #a78bfa;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
     }
 
     AnimationPicker .ap-section {
@@ -60,10 +60,10 @@ class AnimationPicker(Widget):
     AnimationPicker .ap-preview {
         background: #0c0a1a;
         border: round #312e81;
-        padding: 1;
-        min-height: 5;
+        padding: 0 1;
+        min-height: 4;
         color: #6d28d9;
-        margin: 1 0;
+        margin: 1 0 0 0;
     }
     """
 

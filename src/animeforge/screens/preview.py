@@ -23,8 +23,8 @@ class _SceneCanvas(Static):
     _SceneCanvas {
         background: #0c0a1a;
         border: round #4c1d95;
-        min-height: 20;
-        padding: 1;
+        min-height: 16;
+        padding: 0 1;
         color: #a78bfa;
     }
     """

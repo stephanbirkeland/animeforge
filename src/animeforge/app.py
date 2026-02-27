@@ -35,7 +35,7 @@ class AnimeForgeApp(App[None]):
         background: #7c3aed;
         color: #f5f3ff;
         dock: top;
-        height: 3;
+        height: 1;
     }
 
     Footer {
@@ -46,7 +46,7 @@ class AnimeForgeApp(App[None]):
     /* ── Common screen layout ────────────────────────────── */
     .screen-container {
         layout: vertical;
-        padding: 1 2;
+        padding: 0 2;
         background: #0f0b1e;
         height: auto;
     }
@@ -56,26 +56,41 @@ class AnimeForgeApp(App[None]):
         color: #a78bfa;
         text-align: center;
         width: 100%;
-        margin: 1 0;
+        margin: 0;
+        padding: 0;
     }
 
     .card {
         background: #1e1b4b;
         border: round #7c3aed;
-        padding: 1 2;
-        margin: 1 0;
+        padding: 0 2 1 2;
+        margin: 1 0 0 0;
         height: auto;
     }
 
     .card-title {
         text-style: bold;
         color: #c4b5fd;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
     }
 
     /* ── Buttons ─────────────────────────────────────────── */
     Button {
-        margin: 0 1;
+        height: 1;
+        min-width: 12;
+        margin: 0 1 0 0;
+        border: none;
+        padding: 0 1;
+        background: #312e81;
+        color: #c4b5fd;
+    }
+
+    Button:hover {
+        background: #4c1d95;
+    }
+
+    Button:focus {
+        text-style: bold;
     }
 
     Button.primary {
@@ -88,17 +103,17 @@ class AnimeForgeApp(App[None]):
     }
 
     Button.danger {
-        background: #dc2626;
-        color: #fef2f2;
+        background: #7f1d1d;
+        color: #fecaca;
     }
 
     Button.danger:hover {
-        background: #b91c1c;
+        background: #991b1b;
     }
 
     Button.success {
-        background: #059669;
-        color: #ecfdf5;
+        background: #065f46;
+        color: #a7f3d0;
     }
 
     Button.success:hover {
@@ -114,9 +129,11 @@ class AnimeForgeApp(App[None]):
 
     /* ── Form elements ───────────────────────────────────── */
     Input {
-        background: #1e1b4b;
-        border: tall #4c1d95;
+        background: #0c0a1a;
+        border: tall #312e81;
         color: #e9d5ff;
+        margin: 0;
+        padding: 0 1;
     }
 
     Input:focus {
@@ -152,7 +169,7 @@ class AnimeForgeApp(App[None]):
     .toolbar {
         layout: horizontal;
         height: auto;
-        margin: 1 0;
+        margin: 1 0 0 0;
         align: left middle;
     }
 
@@ -175,7 +192,7 @@ class AnimeForgeApp(App[None]):
         border: round #312e81;
         color: #a78bfa;
         height: 1fr;
-        margin: 1 0;
+        margin: 1 0 0 0;
     }
 
     /* ── Checkbox / Switch ───────────────────────────────── */
@@ -191,8 +208,8 @@ class AnimeForgeApp(App[None]):
 
     /* ── Select / SelectionList ──────────────────────────── */
     Select {
-        background: #1e1b4b;
-        border: tall #4c1d95;
+        background: #0c0a1a;
+        border: tall #312e81;
         color: #e9d5ff;
     }
 

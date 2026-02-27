@@ -24,11 +24,11 @@ class ImagePreview(Widget):
     ImagePreview {
         layout: vertical;
         height: auto;
-        min-height: 8;
+        min-height: 6;
         background: #0c0a1a;
         border: round #4c1d95;
-        padding: 1;
-        margin: 1 0;
+        padding: 0 1;
+        margin: 1 0 0 0;
     }
 
     ImagePreview .ip-title {
@@ -38,12 +38,12 @@ class ImagePreview(Widget):
 
     ImagePreview .ip-canvas {
         color: #6d28d9;
-        min-height: 6;
+        min-height: 4;
     }
 
     ImagePreview .ip-info {
         color: #c4b5fd;
-        margin-top: 1;
+        margin: 0;
     }
     """
 

@@ -28,14 +28,14 @@ class ZoneEditor(Widget):
         height: auto;
         background: #1e1b4b;
         border: round #4c1d95;
-        padding: 1 2;
-        margin: 1 0;
+        padding: 0 2 1 2;
+        margin: 1 0 0 0;
     }
 
     ZoneEditor .ze-title {
         text-style: bold;
         color: #a78bfa;
-        margin-bottom: 1;
+        margin: 0 0 1 0;
     }
 
     ZoneEditor DataTable {
@@ -46,7 +46,7 @@ class ZoneEditor(Widget):
     ZoneEditor .ze-fields {
         layout: horizontal;
         height: auto;
-        margin: 1 0;
+        margin: 1 0 0 0;
     }
 
     ZoneEditor .ze-field {
