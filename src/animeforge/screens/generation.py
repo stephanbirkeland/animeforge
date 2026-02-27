@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -29,12 +29,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class _TaskRow(Static):
+class _TaskRow(Horizontal):
     """A single generation task with label + progress bar."""
 
     DEFAULT_CSS = """
     _TaskRow {
-        layout: horizontal;
         height: 3;
         margin: 0 0 1 0;
     }
@@ -83,7 +82,7 @@ class GenerationScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with Vertical(classes="screen-container"):
+        with VerticalScroll(classes="screen-container"):
             with Horizontal(classes="toolbar"):
                 yield Button("<- Back", id="btn-back", classes="back-btn")
                 yield Static("Asset Generation", classes="screen-title")

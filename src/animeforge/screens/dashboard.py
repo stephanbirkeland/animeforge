@@ -6,7 +6,7 @@ from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label, Static
 
@@ -32,7 +32,7 @@ class DashboardScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with Vertical(classes="screen-container"):
+        with VerticalScroll(classes="screen-container"):
             yield Static("ANIMEFORGE  Dashboard", classes="screen-title")
 
             with Vertical(classes="card"):

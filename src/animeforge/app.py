@@ -48,6 +48,7 @@ class AnimeForgeApp(App[None]):
         layout: vertical;
         padding: 1 2;
         background: #0f0b1e;
+        height: auto;
     }
 
     .screen-title {
@@ -63,6 +64,7 @@ class AnimeForgeApp(App[None]):
         border: round #7c3aed;
         padding: 1 2;
         margin: 1 0;
+        height: auto;
     }
 
     .card-title {
@@ -223,8 +225,8 @@ class AnimeForgeApp(App[None]):
         yield Footer()
 
     # ── Lifecycle ────────────────────────────────────────────
-    def on_mount(self) -> None:
-        """Register and push the initial screen."""
+    def _get_screen_factories(self) -> dict[str, Callable[[], Screen[Any]]]:
+        """Return a dict of screen name -> factory callable."""
         from animeforge.screens.character_studio import CharacterStudioScreen
         from animeforge.screens.dashboard import DashboardScreen
         from animeforge.screens.export_screen import ExportScreen
@@ -233,15 +235,21 @@ class AnimeForgeApp(App[None]):
         from animeforge.screens.scene_editor import SceneEditorScreen
         from animeforge.screens.settings_screen import SettingsScreen
 
-        self.install_screen(DashboardScreen, name="dashboard")  # type: ignore[arg-type]
-        self.install_screen(SceneEditorScreen, name="scene_editor")  # type: ignore[arg-type]
-        self.install_screen(CharacterStudioScreen, name="character_studio")  # type: ignore[arg-type]
-        self.install_screen(GenerationScreen, name="generation")  # type: ignore[arg-type]
-        self.install_screen(ExportScreen, name="export")  # type: ignore[arg-type]
-        self.install_screen(SettingsScreen, name="settings")  # type: ignore[arg-type]
-        self.install_screen(PreviewScreen, name="preview")  # type: ignore[arg-type]
+        return {
+            "dashboard": DashboardScreen,
+            "scene_editor": SceneEditorScreen,
+            "character_studio": CharacterStudioScreen,
+            "generation": GenerationScreen,
+            "export": ExportScreen,
+            "settings": SettingsScreen,
+            "preview": PreviewScreen,
+        }
 
-        self.push_screen("dashboard")
+    def on_mount(self) -> None:
+        """Push the initial screen."""
+        from animeforge.screens.dashboard import DashboardScreen
+
+        self.push_screen(DashboardScreen())
 
     # ── Actions ──────────────────────────────────────────────
     def action_go_dashboard(self) -> None:
@@ -257,8 +265,10 @@ class AnimeForgeApp(App[None]):
             self.pop_screen()
 
     def navigate(self, screen_name: str) -> None:
-        """Push a named screen onto the stack."""
-        self.push_screen(screen_name)
+        """Push a new screen instance by name."""
+        factories = self._get_screen_factories()
+        if screen_name in factories:
+            self.push_screen(factories[screen_name]())
 
 
 def run() -> None:

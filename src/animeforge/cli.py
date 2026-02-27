@@ -10,7 +10,7 @@ import typer
 app = typer.Typer(
     name="animeforge",
     help="Lo-fi Girl-style interactive anime scene engine.",
-    no_args_is_help=True,
+    no_args_is_help=False,
 )
 
 
