@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from pydantic import ValidationError
+
 from animeforge.models import (
     AnimationDef,
     Character,
@@ -19,6 +21,7 @@ from animeforge.models import (
     ProjectLoadError,
     Rect,
     Scene,
+    StateTransition,
     Zone,
 )
 from animeforge.models.enums import (
@@ -216,3 +219,52 @@ def test_project_load_schema_mismatch():
         bad_file.write_text(json.dumps({"unexpected": "data"}))
         with pytest.raises(ProjectLoadError, match="project file has invalid structure"):
             Project.load(bad_file)
+
+
+# --- Character model field constraint tests ---
+
+_ANIM_KWARGS = {"id": "idle", "name": "Idle", "zone_id": "desk", "pose_sequence": "idle"}
+_CHAR_KWARGS = {"name": "Girl", "description": "anime girl"}
+
+
+@pytest.mark.parametrize("value", [0, -1, -100])
+def test_animation_def_rejects_invalid_frame_count(value: int) -> None:
+    with pytest.raises(ValidationError):
+        AnimationDef(**_ANIM_KWARGS, frame_count=value)
+
+
+@pytest.mark.parametrize("value", [0, -1])
+def test_animation_def_rejects_invalid_fps(value: int) -> None:
+    with pytest.raises(ValidationError):
+        AnimationDef(**_ANIM_KWARGS, fps=value)
+
+
+@pytest.mark.parametrize("value", [0, -100])
+def test_state_transition_rejects_invalid_duration_ms(value: int) -> None:
+    with pytest.raises(ValidationError):
+        StateTransition(from_state="idle", to_state="typing", duration_ms=value)
+
+
+@pytest.mark.parametrize("value", [1.5, -0.1, 2.0, -1.0])
+def test_character_rejects_invalid_ip_adapter_weight(value: float) -> None:
+    with pytest.raises(ValidationError):
+        Character(**_CHAR_KWARGS, ip_adapter_weight=value)
+
+
+def test_animation_def_accepts_boundary_values() -> None:
+    anim = AnimationDef(**_ANIM_KWARGS, frame_count=1, fps=1)
+    assert anim.frame_count == 1
+    assert anim.fps == 1
+
+
+def test_state_transition_accepts_boundary_value() -> None:
+    t = StateTransition(from_state="idle", to_state="typing", duration_ms=1)
+    assert t.duration_ms == 1
+
+
+def test_character_accepts_ip_adapter_weight_boundaries() -> None:
+    char_low = Character(**_CHAR_KWARGS, ip_adapter_weight=0.0)
+    assert char_low.ip_adapter_weight == 0.0
+
+    char_high = Character(**_CHAR_KWARGS, ip_adapter_weight=1.0)
+    assert char_high.ip_adapter_weight == 1.0

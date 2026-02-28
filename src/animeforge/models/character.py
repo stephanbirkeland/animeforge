@@ -15,8 +15,8 @@ class AnimationDef(BaseModel):
     name: str
     zone_id: str
     pose_sequence: str  # Reference to poses/*.json
-    frame_count: int = 8
-    fps: int = 12
+    frame_count: int = Field(default=8, gt=0)
+    fps: int = Field(default=12, gt=0)
     loop: bool = True
     sprite_sheet: Path | None = None
 
@@ -26,7 +26,7 @@ class StateTransition(BaseModel):
 
     from_state: str
     to_state: str
-    duration_ms: int = 500
+    duration_ms: int = Field(default=500, gt=0)
     auto: bool = False
 
 
@@ -37,7 +37,7 @@ class Character(BaseModel):
     name: str
     description: str
     reference_images: list[Path] = Field(default_factory=list)
-    ip_adapter_weight: float = 0.75
+    ip_adapter_weight: float = Field(default=0.75, ge=0.0, le=1.0)
     negative_prompt: str = ""
     animations: list[AnimationDef] = Field(default_factory=list)
     transitions: list[StateTransition] = Field(default_factory=list)
