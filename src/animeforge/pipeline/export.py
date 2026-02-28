@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from jinja2 import Environment, PackageLoader, TemplateNotFound
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from animeforge.config import AppConfig, load_config
 from animeforge.pipeline.assembly import optimize_image
@@ -19,6 +19,10 @@ if TYPE_CHECKING:
     from animeforge.models import ExportConfig, Project
 
 logger = logging.getLogger(__name__)
+
+
+class ExportError(Exception):
+    """Raised when the export pipeline encounters an unrecoverable error."""
 
 # Expected runtime JS that ships with the package.
 RUNTIME_JS_FILENAME = "animeforge-runtime.js"
@@ -231,13 +235,19 @@ def export_project(
                 ext = config.image_format.lower()
                 dest_name = f"{char.name}_{anim.id}.{ext}"
                 dest = char_dir / dest_name
-                optimize_image(
-                    anim.sprite_sheet, dest,
-                    quality=config.image_quality, format=ext,
-                )
-                # Determine frame dimensions from the sprite sheet image.
-                sheet_img = Image.open(anim.sprite_sheet)
-                sheet_w, sheet_h = sheet_img.size
+                try:
+                    optimize_image(
+                        anim.sprite_sheet, dest,
+                        quality=config.image_quality, format=ext,
+                    )
+                    # Determine frame dimensions from the sprite sheet image.
+                    sheet_img = Image.open(anim.sprite_sheet)
+                    sheet_w, sheet_h = sheet_img.size
+                except (OSError, UnidentifiedImageError) as exc:
+                    raise ExportError(
+                        f"Cannot open sprite sheet for '{anim.id}': "
+                        f"{anim.sprite_sheet}"
+                    ) from exc
                 frame_w = sheet_w // max(anim.frame_count, 1)
                 frame_h = sheet_h
 

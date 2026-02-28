@@ -13,7 +13,7 @@ from animeforge.pipeline.effect_gen import (
     generate_sakura_sprites,
     generate_snow_sprites,
 )
-from animeforge.pipeline.export import export_project
+from animeforge.pipeline.export import ExportError, export_project
 from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence
 from animeforge.pipeline.scene_gen import generate_scene_backgrounds
 
@@ -22,6 +22,7 @@ __all__ = [
     "build_character_prompt",
     "build_negative_prompt",
     "build_scene_prompt",
+    "ExportError",
     "export_project",
     "generate_character_animations",
     "generate_leaf_sprites",
