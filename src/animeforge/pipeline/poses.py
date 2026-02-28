@@ -92,7 +92,7 @@ def interpolate_poses(
 
     for i in range(target_frames):
         # Map output frame index to a floating-point source index.
-        t = i / max(target_frames - 1, 1) * max(n_src - 1, 1)
+        t = i / max(target_frames - 1, 1) * (n_src - 1)
         idx_lo = int(t)
         idx_hi = min(idx_lo + 1, n_src - 1)
         alpha = t - idx_lo
