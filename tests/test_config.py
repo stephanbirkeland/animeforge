@@ -1,5 +1,8 @@
 """Tests for configuration system."""
 
+import pytest
+from pydantic import ValidationError
+
 from animeforge.config import AppConfig, ComfyUISettings, GenerationSettings, ModelSettings
 
 
@@ -33,3 +36,15 @@ def test_app_config_defaults():
     config = AppConfig()
     assert config.config_dir.name == ".animeforge"
     assert config.projects_dir.parent.name == ".animeforge"
+
+
+@pytest.mark.parametrize("bad", [0, -1, 65536, 100000])
+def test_comfyui_settings_port_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        ComfyUISettings(port=bad)
+
+
+@pytest.mark.parametrize("good", [1, 8188, 443, 65535])
+def test_comfyui_settings_port_accepted(good: int) -> None:
+    settings = ComfyUISettings(port=good)
+    assert settings.port == good
