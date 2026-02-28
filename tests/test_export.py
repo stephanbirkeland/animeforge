@@ -8,7 +8,7 @@ import pytest
 
 from animeforge.models import ExportConfig, Project, Scene
 from animeforge.pipeline import export as export_module
-from animeforge.pipeline.export import export_project
+from animeforge.pipeline.export import ExportError, export_project
 
 
 @pytest.fixture
@@ -112,6 +112,23 @@ def test_export_scene_json_has_zones(_populated_project: Project, tmp_path: Path
     assert "bounds" not in zone
     assert zone["type"] == "character"
     assert zone["scale"] == 1
+
+
+def test_export_raises_on_corrupt_sprite_sheet(
+    sample_project: Project, tmp_path: Path,
+):
+    """Image.open() on a zero-byte sprite sheet must raise ExportError."""
+    # Create a zero-byte file that exists but is not a valid image.
+    corrupt_sheet = tmp_path / "corrupt.png"
+    corrupt_sheet.touch()
+
+    # Point the first animation's sprite_sheet at the corrupt file.
+    anim = sample_project.character.animations[0]
+    anim.sprite_sheet = corrupt_sheet
+
+    config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
+    with pytest.raises(ExportError, match=corrupt_sheet.name):
+        export_project(sample_project, config)
 
 
 def test_css_template_syntax_error_propagates(
