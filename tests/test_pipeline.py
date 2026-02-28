@@ -3,8 +3,11 @@
 import tempfile
 from pathlib import Path
 
-from animeforge.models import AnimationDef, Character, Scene, Zone, Rect
-from animeforge.models.enums import Season, TimeOfDay, Weather
+import pytest
+
+from animeforge.models import AnimationDef, Character, Rect, Scene, Zone
+from animeforge.models.enums import TimeOfDay, Weather
+from animeforge.models.pose import PoseFrame, PoseKeypoints, PoseSequence
 from animeforge.pipeline.consistency import (
     build_character_prompt,
     build_negative_prompt,
@@ -16,7 +19,7 @@ from animeforge.pipeline.effect_gen import (
     generate_sakura_sprites,
     generate_snow_sprites,
 )
-from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence
+from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence, render_pose_image
 
 
 def test_build_scene_prompt():
@@ -119,3 +122,50 @@ def test_generate_sakura_sprites_dimensions():
         )
         img = Image.open(path)
         assert img.size == (64 * 6, 64)
+
+
+def test_interpolate_poses_empty_sequence_raises():
+    seq = PoseSequence(name="empty", frames=[])
+    with pytest.raises(ValueError, match="has no frames"):
+        interpolate_poses(seq, 5)
+
+
+def test_interpolate_poses_zero_target_raises():
+    seq = PoseSequence(name="one", frames=[PoseFrame(keypoints=PoseKeypoints())])
+    with pytest.raises(ValueError, match="target_frames must be positive"):
+        interpolate_poses(seq, 0)
+    with pytest.raises(ValueError, match="target_frames must be positive"):
+        interpolate_poses(seq, -1)
+
+
+def test_interpolate_poses_single_source_frame():
+    kp = PoseKeypoints(nose=[0.3, 0.2, 1.0])
+    seq = PoseSequence(name="single", frames=[PoseFrame(keypoints=kp)])
+    result = interpolate_poses(seq, 5)
+    assert len(result) == 5
+    for frame_kp in result:
+        assert frame_kp.nose == pytest.approx([0.3, 0.2, 1.0])
+
+
+def test_render_pose_image_creates_file(tmp_path: Path):
+    from PIL import Image
+
+    kp = PoseKeypoints()
+    out = tmp_path / "pose.png"
+    returned = render_pose_image(kp, out)
+    assert returned == out
+    assert out.exists()
+    assert out.suffix == ".png"
+    img = Image.open(out)
+    img.load()
+    assert img.format == "PNG"
+
+
+def test_render_pose_image_dimensions(tmp_path: Path):
+    from PIL import Image
+
+    kp = PoseKeypoints()
+    out = tmp_path / "pose.png"
+    render_pose_image(kp, out, width=256, height=128)
+    img = Image.open(out)
+    assert img.size == (256, 128)
