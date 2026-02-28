@@ -106,7 +106,7 @@ class ExportScreen(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self._running = False
+        self._export_running = False
         self._cancel_event: asyncio.Event | None = None
         log = self.query_one("#export-log", RichLog)
         log.write("[bold magenta]Export[/bold magenta] ready. Configure options and press Export.")
@@ -115,7 +115,7 @@ class ExportScreen(Screen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
             case "btn-back":
-                if self._running:
+                if self._export_running:
                     self._set_status("Cancel export before going back.")
                 else:
                     self.app.pop_screen()
@@ -164,7 +164,7 @@ class ExportScreen(Screen[None]):
         )
 
     def _start_export(self) -> None:
-        if self._running:
+        if self._export_running:
             self._set_status("Export already in progress.")
             return
 
@@ -177,7 +177,7 @@ class ExportScreen(Screen[None]):
             export_config = self._build_export_config()
         except ValueError:
             return
-        self._running = True
+        self._export_running = True
         self._cancel_event = asyncio.Event()
         self._set_status("Export started...")
         # Capture widget references in the main thread before starting the worker
@@ -193,7 +193,7 @@ class ExportScreen(Screen[None]):
         )
 
     def _cancel_export(self) -> None:
-        if not self._running:
+        if not self._export_running:
             self._set_status("No export running.")
             return
         if self._cancel_event:
@@ -233,7 +233,7 @@ class ExportScreen(Screen[None]):
         _bar(10)
 
         if self._cancel_event and self._cancel_event.is_set():
-            self._running = False
+            self._export_running = False
             _log("[bold yellow]Export cancelled.[/bold yellow]")
             _status("Export cancelled.")
             return
@@ -255,7 +255,7 @@ class ExportScreen(Screen[None]):
             _log(f"[bold red]Export failed:[/bold red] {exc}")
             _status(f"Export failed: {exc}")
         finally:
-            self._running = False
+            self._export_running = False
 
     def _set_status(self, text: str) -> None:
         label = self.query_one("#export-status", Label)

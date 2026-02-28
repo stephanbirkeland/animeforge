@@ -115,7 +115,7 @@ class GenerationScreen(Screen[None]):
         yield Footer()
 
     def on_mount(self) -> None:
-        self._running = False
+        self._generation_running = False
         self._cancel_event: asyncio.Event | None = None
         log = self.query_one("#gen-log", RichLog)
         log.write("[bold magenta]AnimeForge Generator[/bold magenta] ready.")
@@ -125,7 +125,7 @@ class GenerationScreen(Screen[None]):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
             case "btn-back":
-                if self._running:
+                if self._generation_running:
                     self._set_status("Cancel generation before going back.")
                 else:
                     self.app.pop_screen()
@@ -138,7 +138,7 @@ class GenerationScreen(Screen[None]):
 
     # ── Generation pipeline ──────────────────────────────────
     def action_start_generation(self) -> None:
-        if self._running:
+        if self._generation_running:
             self._set_status("Generation already in progress.")
             return
 
@@ -147,13 +147,13 @@ class GenerationScreen(Screen[None]):
             self._set_status("No project loaded. Go to Dashboard first.")
             return
 
-        self._running = True
+        self._generation_running = True
         self._cancel_event = asyncio.Event()
         self._set_status("Generation started...")
         self.run_worker(self._run_generation(proj), exclusive=True)
 
     def action_cancel_generation(self) -> None:
-        if not self._running:
+        if not self._generation_running:
             self._set_status("No generation running.")
             return
         if self._cancel_event:
@@ -396,7 +396,7 @@ class GenerationScreen(Screen[None]):
                 except Exception as exc:
                     log.write(f"[bold yellow]Warning:[/bold yellow] Could not save project: {exc}")
 
-            self._running = False
+            self._generation_running = False
             if _cancelled():
                 self._set_status("Generation cancelled.")
                 log.write("[bold yellow]Generation cancelled by user.[/bold yellow]")
