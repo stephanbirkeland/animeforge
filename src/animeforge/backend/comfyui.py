@@ -332,7 +332,7 @@ class ComfyUIBackend:
             if prompt_id in history:
                 outputs = history[prompt_id].get("outputs", {})
                 images: list[Path] = []
-                for _node_id, node_output in outputs.items():
+                for node_output in outputs.values():
                     for img_data in node_output.get("images", []):
                         filename = img_data["filename"]
                         subfolder = img_data.get("subfolder", "")
