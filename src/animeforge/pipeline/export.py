@@ -157,6 +157,113 @@ def validate_export(
     )
 
 
+
+def export_animated_image(
+    sprite_sheet_path: Path,
+    frame_count: int,
+    fps: int,
+    output_path: Path,
+    animated_format: str,
+    *,
+    loop: int = 0,
+) -> Path:
+    """Split a horizontal sprite sheet into frames and save as animated GIF or APNG.
+
+    Parameters
+    ----------
+    sprite_sheet_path:
+        Path to the source sprite sheet image.
+    frame_count:
+        Number of frames in the sprite sheet.
+    fps:
+        Frames per second for the animation.
+    output_path:
+        Destination path for the animated image.
+    animated_format:
+        "gif" or "apng".
+    loop:
+        Number of loops.  0 means loop forever (default).
+
+    Returns
+    -------
+    Path
+        The *output_path*, for chaining convenience.
+
+    Raises
+    ------
+    ExportError
+        If the sprite sheet cannot be opened or has no frames.
+    """
+    try:
+        sheet = Image.open(sprite_sheet_path)
+    except (OSError, UnidentifiedImageError) as exc:
+        raise ExportError(
+            f"Cannot open sprite sheet for animated export: {sprite_sheet_path}"
+        ) from exc
+
+    sheet_w, sheet_h = sheet.size
+    effective_count = max(frame_count, 1)
+    frame_w = sheet_w // effective_count
+
+    if frame_w <= 0:
+        raise ExportError(
+            f"Invalid frame width ({frame_w}) for sprite sheet: {sprite_sheet_path}"
+        )
+
+    # Split sprite sheet into individual frames.
+    frames: list[Image.Image] = []
+    for i in range(effective_count):
+        box = (i * frame_w, 0, (i + 1) * frame_w, sheet_h)
+        frames.append(sheet.crop(box))
+
+    if not frames:
+        raise ExportError(f"No frames extracted from sprite sheet: {sprite_sheet_path}")
+
+    # Calculate frame duration in milliseconds.
+    duration_ms = max(1000 // max(fps, 1), 1)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if animated_format == "gif":
+        # GIF requires palette mode; convert RGBA frames to RGB with white background.
+        rgb_frames: list[Image.Image] = []
+        for frame in frames:
+            if frame.mode == "RGBA":
+                bg = Image.new("RGB", frame.size, (255, 255, 255))
+                bg.paste(frame, mask=frame.split()[3])
+                rgb_frames.append(bg)
+            else:
+                rgb_frames.append(frame.convert("RGB"))
+        rgb_frames[0].save(
+            output_path,
+            format="GIF",
+            save_all=True,
+            append_images=rgb_frames[1:],
+            duration=duration_ms,
+            loop=loop,
+        )
+    else:
+        # APNG -- preserve RGBA.
+        rgba_frames = [f.convert("RGBA") for f in frames]
+        rgba_frames[0].save(
+            output_path,
+            format="PNG",
+            save_all=True,
+            append_images=rgba_frames[1:],
+            duration=duration_ms,
+            loop=loop,
+        )
+
+    logger.info(
+        "Animated %s: %s (%d frames, %d ms/frame)",
+        animated_format.upper(),
+        output_path,
+        len(frames),
+        duration_ms,
+    )
+    return output_path
+
+
 def export_project(
     project: Project,
     config: ExportConfig,

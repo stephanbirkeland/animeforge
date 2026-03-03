@@ -200,7 +200,7 @@ def export(
                 err=True,
             )
             raise typer.Exit(1)
-        anim_fmt = animated_format  # type: ignore[assignment]
+        anim_fmt = animated_format
 
     export_config = ExportConfig(
         output_dir=output or Path("output"),

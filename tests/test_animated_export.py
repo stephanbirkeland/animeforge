@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 from PIL import Image
 
 from animeforge.models import ExportConfig, Project
@@ -150,19 +153,29 @@ class TestExportProjectAnimated:
         return sample_project
 
     def test_export_with_gif_format(self, project_with_sheet: Project, tmp_path: Path) -> None:
-        config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png", animated_format="gif")
+        config = ExportConfig(
+            output_dir=tmp_path / "export_out",
+            image_format="png",
+            animated_format="gif",
+        )
         out = export_project(project_with_sheet, config)
         gif_files = list(out.glob("*.gif"))
         assert len(gif_files) > 0
 
     def test_export_with_apng_format(self, project_with_sheet: Project, tmp_path: Path) -> None:
-        config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png", animated_format="apng")
+        config = ExportConfig(
+            output_dir=tmp_path / "export_out",
+            image_format="png",
+            animated_format="apng",
+        )
         out = export_project(project_with_sheet, config)
         char_name = project_with_sheet.character.name
         apng_files = list(out.glob(f"{char_name}_*.png"))
         assert len(apng_files) > 0
 
-    def test_export_without_animated_format(self, project_with_sheet: Project, tmp_path: Path) -> None:
+    def test_export_without_animated_format(
+        self, project_with_sheet: Project, tmp_path: Path,
+    ) -> None:
         config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
         out = export_project(project_with_sheet, config)
         gif_files = list(out.glob("*.gif"))
