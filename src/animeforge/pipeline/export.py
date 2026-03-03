@@ -435,6 +435,25 @@ def export_project(
     if config.include_preview:
         _generate_preview(bg_dir, out)
 
+    # ------------------------------------------------------------------
+    # 8. (Optional) Generate animated GIF / APNG
+    # ------------------------------------------------------------------
+    if config.animated_format and project.character:
+        for anim in project.character.animations:
+            if anim.sprite_sheet and anim.sprite_sheet.exists():
+                fmt = config.animated_format
+                ext = "gif" if fmt == "gif" else "png"
+                anim_name = f"{project.character.name}_{anim.id}.{ext}"
+                anim_dest = out / anim_name
+                export_animated_image(
+                    sprite_sheet_path=anim.sprite_sheet,
+                    frame_count=anim.frame_count,
+                    fps=anim.fps,
+                    output_path=anim_dest,
+                    animated_format=fmt,
+                    loop=0 if anim.loop else 1,
+                )
+
     logger.info("Export complete -> %s", out)
     return out
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -20,3 +21,4 @@ class ExportConfig(BaseModel):
     times: list[TimeOfDay] = list(TimeOfDay)
     weathers: list[Weather] = list(Weather)
     seasons: list[Season] = list(Season)
+    animated_format: Literal["gif", "apng"] | None = None

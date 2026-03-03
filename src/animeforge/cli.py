@@ -174,6 +174,13 @@ def export(
         bool,
         typer.Option("--dry-run", help="Validate export without writing files"),
     ] = False,
+    animated_format: Annotated[
+        str | None,
+        typer.Option(
+            "--animated-format",
+            help="Generate animated image: gif or apng",
+        ),
+    ] = None,
 ) -> None:
     """Export a project as a web package."""
     from animeforge.models.export import ExportConfig  # noqa: PLC0415
@@ -184,7 +191,21 @@ def export(
     except ProjectLoadError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
-    export_config = ExportConfig(output_dir=output or Path("output"))
+
+    anim_fmt = None
+    if animated_format is not None:
+        if animated_format not in ("gif", "apng"):
+            typer.echo(
+                f"Error: --animated-format must be gif or apng, got {animated_format}",
+                err=True,
+            )
+            raise typer.Exit(1)
+        anim_fmt = animated_format  # type: ignore[assignment]
+
+    export_config = ExportConfig(
+        output_dir=output or Path("output"),
+        animated_format=anim_fmt,  # type: ignore[arg-type]
+    )
 
     if dry_run:
         from animeforge.pipeline.export import validate_export  # noqa: PLC0415
