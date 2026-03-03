@@ -64,7 +64,11 @@ class ComfyUIBackend:
             json={"prompt": workflow, "client_id": self._client_id},
         )
         resp.raise_for_status()
-        prompt_id = resp.json()["prompt_id"]
+        body = resp.json()
+        if not isinstance(body, dict) or "prompt_id" not in body:
+            msg = f"ComfyUI /prompt returned unexpected response: {body!r}"
+            raise ValueError(msg)
+        prompt_id: str = body["prompt_id"]
 
         # Poll for completion
         images = await self._wait_for_result(prompt_id, progress_callback)
@@ -81,8 +85,15 @@ class ComfyUIBackend:
         resp = await client.get("/object_info/CheckpointLoaderSimple")
         resp.raise_for_status()
         data = resp.json()
-        result: list[str] = data["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
-        return result
+        if not isinstance(data, dict):
+            return []
+        node_info = data.get("CheckpointLoaderSimple", {})
+        input_info = node_info.get("input", {}) if isinstance(node_info, dict) else {}
+        required = input_info.get("required", {}) if isinstance(input_info, dict) else {}
+        ckpt_entry = required.get("ckpt_name", []) if isinstance(required, dict) else []
+        if isinstance(ckpt_entry, list) and len(ckpt_entry) > 0 and isinstance(ckpt_entry[0], list):
+            return [str(name) for name in ckpt_entry[0]]
+        return []
 
     def _ensure_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -195,16 +206,12 @@ class ComfyUIBackend:
 
         # Add ControlNet if specified
         if request.controlnet_image and request.controlnet_model:
-            self._add_controlnet(
-                workflow, request, ckpt_id, pos_id, neg_id, sampler_id, node_id
-            )
+            self._add_controlnet(workflow, request, ckpt_id, pos_id, neg_id, sampler_id, node_id)
             node_id += 3  # ControlNet adds 3 nodes
 
         # Add IP-Adapter if specified
         if request.ip_adapter_image and request.ip_adapter_model:
-            self._add_ip_adapter(
-                workflow, request, ckpt_id, sampler_id, node_id
-            )
+            self._add_ip_adapter(workflow, request, ckpt_id, sampler_id, node_id)
 
         return workflow
 
@@ -312,48 +319,41 @@ class ComfyUIBackend:
             Defaults to 600 (10 minutes).
         """
         import asyncio
-        import time as _time
 
         client = self._ensure_client()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        deadline = _time.monotonic() + timeout
-        while True:
-            if _time.monotonic() > deadline:
-                msg = (
-                    f"Generation timed out after {timeout}s "
-                    f"waiting for prompt {prompt_id}"
-                )
-                raise TimeoutError(msg)
-            resp = await client.get(f"/history/{prompt_id}")
-            resp.raise_for_status()
-            history = resp.json()
+        async with asyncio.timeout(timeout):
+            while True:
+                resp = await client.get(f"/history/{prompt_id}")
+                resp.raise_for_status()
+                history = resp.json()
 
-            if prompt_id in history:
-                outputs = history[prompt_id].get("outputs", {})
-                images: list[Path] = []
-                for node_output in outputs.values():
-                    for img_data in node_output.get("images", []):
-                        filename = img_data["filename"]
-                        subfolder = img_data.get("subfolder", "")
-                        img_resp = await client.get(
-                            "/view",
-                            params={
-                                "filename": filename,
-                                "subfolder": subfolder,
-                                "type": "output",
-                            },
-                        )
-                        img_resp.raise_for_status()
-                        out_path = self.output_dir / filename
-                        out_path.write_bytes(img_resp.content)
-                        images.append(out_path)
-                return images
+                if prompt_id in history:
+                    outputs = history[prompt_id].get("outputs", {})
+                    images: list[Path] = []
+                    for node_output in outputs.values():
+                        for img_data in node_output.get("images", []):
+                            filename = img_data["filename"]
+                            subfolder = img_data.get("subfolder", "")
+                            img_resp = await client.get(
+                                "/view",
+                                params={
+                                    "filename": filename,
+                                    "subfolder": subfolder,
+                                    "type": "output",
+                                },
+                            )
+                            img_resp.raise_for_status()
+                            out_path = self.output_dir / filename
+                            out_path.write_bytes(img_resp.content)
+                            images.append(out_path)
+                    return images
 
-            if progress_callback:
-                progress_callback(0, 0, "Generating...")
+                if progress_callback:
+                    progress_callback(0, 0, "Generating...")
 
-            await asyncio.sleep(1.0)
+                await asyncio.sleep(1.0)
 
     def _build_workflow_json(self, request: GenerationRequest) -> str:
         return json.dumps(self._build_workflow(request), indent=2)
