@@ -86,7 +86,9 @@ class AppConfig(BaseSettings):
 
     @classmethod
     def settings_customise_sources(  # type: ignore[override]
-        cls, settings_cls: type[BaseSettings], **kwargs: Any,
+        cls,
+        settings_cls: type[BaseSettings],
+        **kwargs: Any,
     ) -> tuple[Any, ...]:
         toml_path = _default_config_dir() / "config.toml"
         sources: tuple[Any, ...] = (

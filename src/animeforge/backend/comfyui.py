@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from pathlib import Path
@@ -10,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from animeforge.backend.base import GenerationRequest, GenerationResult
+
+HTTP_OK = 200
 
 if TYPE_CHECKING:
     from animeforge.backend.base import ProgressCallback
@@ -46,7 +49,7 @@ class ComfyUIBackend:
         try:
             client = self._ensure_client()
             resp = await client.get("/system_stats")
-            return resp.status_code == 200
+            return resp.status_code == HTTP_OK
         except (httpx.ConnectError, httpx.TimeoutException):
             return False
 
@@ -318,8 +321,6 @@ class ComfyUIBackend:
             Maximum seconds to wait before raising ``TimeoutError``.
             Defaults to 600 (10 minutes).
         """
-        import asyncio
-
         client = self._ensure_client()
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

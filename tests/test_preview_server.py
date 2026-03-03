@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import threading
 import urllib.request
 
 import pytest
@@ -78,7 +77,9 @@ class TestWebSocketBroadcast:
             async with websockets.connect(f"ws://localhost:{port}") as client:
                 # Small delay to let handler register the client
                 await asyncio.sleep(0.05)
-                await server.broadcast({"type": "progress", "step": 1, "total": 10, "status": "test"})
+                await server.broadcast(
+                    {"type": "progress", "step": 1, "total": 10, "status": "test"}
+                )
                 raw = await asyncio.wait_for(client.recv(), timeout=2.0)
                 msg = json.loads(raw)
                 assert msg["type"] == "progress"

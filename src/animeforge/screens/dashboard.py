@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
+from uuid import uuid4
 
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label, Static
 
 from animeforge.config import load_config
+from animeforge.models import Project, Scene
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -79,16 +81,10 @@ class DashboardScreen(Screen[None]):
             project_file = project_path / "project.json"
             if project_path.is_dir() and project_file.exists():
                 try:
-                    from animeforge.models import Project
-
                     proj = Project.load(project_file)
                     char_name = proj.character.name if proj.character else "-"
                     mtime = project_file.stat().st_mtime
-                    from datetime import datetime
-
-                    modified = datetime.fromtimestamp(mtime, tz=UTC).strftime(
-                        "%Y-%m-%d %H:%M"
-                    )
+                    modified = datetime.fromtimestamp(mtime, tz=UTC).strftime("%Y-%m-%d %H:%M")
                     table.add_row(
                         proj.name,
                         str(project_path),
@@ -170,8 +166,6 @@ class DashboardScreen(Screen[None]):
             self._set_status("No project selected.")
             return
         try:
-            from animeforge.models import Project
-
             proj = Project.load(path)
             proj.project_dir = path if path.is_dir() else path.parent
             self.app._current_project = proj  # type: ignore[attr-defined]
@@ -182,11 +176,6 @@ class DashboardScreen(Screen[None]):
     # ── Actions ──────────────────────────────────────────────
     def action_new_project(self) -> None:
         """Create a new blank project."""
-        from uuid import uuid4
-
-        from animeforge.config import load_config
-        from animeforge.models import Project, Scene
-
         config = load_config()
         project_name = f"project-{uuid4().hex[:8]}"
         project_dir = config.projects_dir / project_name

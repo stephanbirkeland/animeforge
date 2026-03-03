@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -74,10 +75,7 @@ async def generate_scene_backgrounds(
             season=scene.default_season,
         )
 
-        negative = (
-            "low quality, blurry, watermark, text, logo, "
-            "3d render, photograph, realistic"
-        )
+        negative = "low quality, blurry, watermark, text, logo, 3d render, photograph, realistic"
 
         request = GenerationRequest(
             prompt=prompt,
@@ -97,7 +95,9 @@ async def generate_scene_backgrounds(
             request.init_image = base_layer.image_path
             request.denoise_strength = 0.55
             logger.info(
-                "img2img for %s using base %s", time.value, base_layer.image_path,
+                "img2img for %s using base %s",
+                time.value,
+                base_layer.image_path,
             )
         else:
             logger.info("txt2img for %s (no base image)", time.value)
@@ -109,7 +109,6 @@ async def generate_scene_backgrounds(
             dest = output_dir / f"bg_{time.value}.png"
             # Backend may write to a temp path; copy to our output dir.
             if src != dest:
-                import shutil
                 shutil.copy2(src, dest)
             results[time] = dest
             logger.info("Generated %s -> %s (seed=%d)", time.value, dest, result.seed)

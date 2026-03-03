@@ -46,7 +46,10 @@ class MockBackend:
 
         seed = request.seed if request.seed >= 0 else _prompt_seed(request.prompt)
         img = _create_gradient_image(
-            request.width, request.height, request.prompt, seed,
+            request.width,
+            request.height,
+            request.prompt,
+            seed,
         )
 
         self.output_dir.mkdir(parents=True, exist_ok=True)

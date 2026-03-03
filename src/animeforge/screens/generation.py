@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -18,6 +19,20 @@ from textual.widgets import (
     RichLog,
     Static,
 )
+
+from animeforge.backend.comfyui import ComfyUIBackend
+from animeforge.backend.fal_backend import FalBackend
+from animeforge.backend.mock import MockBackend
+from animeforge.config import load_config
+from animeforge.models import EffectDef, Layer
+from animeforge.models.enums import EffectType, Season, Weather
+from animeforge.pipeline.character_gen import generate_character_animations
+from animeforge.pipeline.effect_gen import (
+    generate_leaf_sprites,
+    generate_rain_sprites,
+    generate_snow_sprites,
+)
+from animeforge.pipeline.scene_gen import generate_scene_backgrounds
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -162,17 +177,6 @@ class GenerationScreen(Screen[None]):
 
     async def _run_generation(self, proj: Project) -> None:
         """Run the real generation pipeline with progress updates."""
-        from animeforge.backend.comfyui import ComfyUIBackend
-        from animeforge.backend.fal_backend import FalBackend
-        from animeforge.backend.mock import MockBackend
-        from animeforge.config import load_config
-        from animeforge.pipeline.effect_gen import (
-            generate_leaf_sprites,
-            generate_rain_sprites,
-            generate_snow_sprites,
-        )
-        from animeforge.pipeline.scene_gen import generate_scene_backgrounds
-
         log = self.query_one("#gen-log", RichLog)
         overall_bar = self.query_one("#overall-bar", ProgressBar)
 
@@ -226,10 +230,12 @@ class GenerationScreen(Screen[None]):
             Since _run_generation is an async coroutine running in the
             main event loop (not a thread), we call widget methods directly.
             """
+
             def cb(step: int, total: int, status: str) -> None:
                 if total > 0:
                     pct = (step / total) * 90 + 10  # 10-100 range
                     task_row.update_progress(pct)
+
             return cb
 
         try:
@@ -242,7 +248,9 @@ class GenerationScreen(Screen[None]):
                 task_bg.update_progress(10)
                 try:
                     bg_results = await generate_scene_backgrounds(
-                        proj.scene, backend, config,
+                        proj.scene,
+                        backend,
+                        config,
                         output_dir=output_dir / "backgrounds",
                         progress_callback=_make_progress_cb(task_bg),
                     )
@@ -251,7 +259,6 @@ class GenerationScreen(Screen[None]):
                         base_layer = min(proj.scene.layers, key=lambda ly: ly.z_index)
                         base_layer.time_variants.update(bg_results)
                     elif bg_results:
-                        from animeforge.models import Layer
                         layer = Layer(id="bg-main", z_index=0, time_variants=bg_results)
                         proj.scene.layers.append(layer)
                     log.write(
@@ -275,9 +282,11 @@ class GenerationScreen(Screen[None]):
                 log.write("[bold cyan]Starting:[/bold cyan] Character sprites")
                 task_char.update_progress(10)
                 try:
-                    from animeforge.pipeline.character_gen import generate_character_animations
                     char_results = await generate_character_animations(
-                        proj.character, proj.scene, backend, config,
+                        proj.character,
+                        proj.scene,
+                        backend,
+                        config,
                         output_dir=output_dir / "characters",
                         progress_callback=_make_progress_cb(task_char),
                     )
@@ -317,9 +326,6 @@ class GenerationScreen(Screen[None]):
             task_fx.update_progress(10)
             fx_dir = output_dir / "effects"
             try:
-                from animeforge.models import EffectDef
-                from animeforge.models.enums import EffectType, Season, Weather
-
                 rain_path = generate_rain_sprites(fx_dir)
                 proj.scene.effects.append(
                     EffectDef(
@@ -352,8 +358,7 @@ class GenerationScreen(Screen[None]):
                     )
                 )
                 log.write(
-                    f"[bold green]Completed:[/bold green] Effects — "
-                    f"rain, snow, leaves -> {fx_dir}"
+                    f"[bold green]Completed:[/bold green] Effects — rain, snow, leaves -> {fx_dir}"
                 )
             except Exception as exc:
                 log.write(f"[bold red]Error:[/bold red] Effect generation failed: {exc}")
@@ -378,13 +383,12 @@ class GenerationScreen(Screen[None]):
             completed_phases += 1
             _update_overall()
             log.write(
-                "[bold green]Completed:[/bold green] "
-                "Weather variants (triggered by effect sprites)"
+                "[bold green]Completed:[/bold green] Weather variants (triggered by effect sprites)"
             )
 
         finally:
             # Always disconnect and clean up
-            import contextlib
+
             with contextlib.suppress(Exception):
                 await backend.disconnect()
 

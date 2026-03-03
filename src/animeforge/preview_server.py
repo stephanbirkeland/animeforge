@@ -27,7 +27,7 @@ class _HTMLHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/" or self.path.startswith("/?"):
-            html = _TEMPLATE_PATH.read_text()
+            html = _TEMPLATE_PATH.read_text(encoding="utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -58,12 +58,14 @@ class PreviewServer:
         """Return a sync callback that enqueues progress messages."""
 
         def callback(step: int, total: int, status: str) -> None:
-            self._queue.put_nowait({
-                "type": "progress",
-                "step": step,
-                "total": total,
-                "status": status,
-            })
+            self._queue.put_nowait(
+                {
+                    "type": "progress",
+                    "step": step,
+                    "total": total,
+                    "status": status,
+                }
+            )
 
         return callback
 
@@ -93,10 +95,12 @@ class PreviewServer:
         if result.images:
             image_data = result.images[0].read_bytes()
             b64 = base64.b64encode(image_data).decode("ascii")
-            self._queue.put_nowait({
-                "type": "complete",
-                "image": f"data:image/png;base64,{b64}",
-            })
+            self._queue.put_nowait(
+                {
+                    "type": "complete",
+                    "image": f"data:image/png;base64,{b64}",
+                }
+            )
 
         await backend.disconnect()
 
@@ -107,9 +111,7 @@ class PreviewServer:
             (_HTMLHandler,),
             {"ws_port": self.ws_port},
         )
-        self._http_server = http.server.HTTPServer(
-            ("", self.http_port), handler_class
-        )
+        self._http_server = http.server.HTTPServer(("", self.http_port), handler_class)
         thread = threading.Thread(target=self._http_server.serve_forever, daemon=True)
         thread.start()
 
@@ -123,9 +125,7 @@ class PreviewServer:
         try:
             async with websockets.serve(self._ws_handler, "localhost", self.ws_port):
                 if open_browser:
-                    webbrowser.open(
-                        f"http://localhost:{self.http_port}?ws={self.ws_port}"
-                    )
+                    webbrowser.open(f"http://localhost:{self.http_port}?ws={self.ws_port}")
 
                 broadcaster = asyncio.create_task(self._broadcast_loop())
                 generation = asyncio.create_task(self._run_generation(prompt))

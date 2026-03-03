@@ -23,10 +23,10 @@ def create(
     ] = None,
 ) -> None:
     """Create a new AnimeForge project."""
-    from animeforge.config import load_config
-    from animeforge.models.character import Character
-    from animeforge.models.project import Project
-    from animeforge.models.scene import Scene
+    from animeforge.config import load_config  # noqa: PLC0415
+    from animeforge.models.character import Character  # noqa: PLC0415
+    from animeforge.models.project import Project  # noqa: PLC0415
+    from animeforge.models.scene import Scene  # noqa: PLC0415
 
     config = load_config()
     project_dir = directory or config.projects_dir / name
@@ -57,17 +57,17 @@ def generate(
     ] = None,
 ) -> None:
     """Generate a single anime image."""
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
-    from animeforge.backend.base import GenerationRequest
-    from animeforge.config import load_config
+    from animeforge.backend.base import GenerationRequest  # noqa: PLC0415
+    from animeforge.config import load_config  # noqa: PLC0415
 
     config = load_config()
     backend_name = backend or config.active_backend
 
-    from animeforge.backend.comfyui import ComfyUIBackend
-    from animeforge.backend.fal_backend import FalBackend
-    from animeforge.backend.mock import MockBackend
+    from animeforge.backend.comfyui import ComfyUIBackend  # noqa: PLC0415
+    from animeforge.backend.fal_backend import FalBackend  # noqa: PLC0415
+    from animeforge.backend.mock import MockBackend  # noqa: PLC0415
 
     gen_backend: ComfyUIBackend | FalBackend | MockBackend
     if backend_name == "fal":
@@ -111,16 +111,16 @@ def generate(
 @app.command()
 def check() -> None:
     """Check backend connectivity and report status."""
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
-    from animeforge.config import load_config
+    from animeforge.config import load_config  # noqa: PLC0415
 
     config = load_config()
     backend_name = config.active_backend
 
     async def _run() -> None:
         if backend_name == "fal":
-            from animeforge.backend.fal_backend import FalBackend
+            from animeforge.backend.fal_backend import FalBackend  # noqa: PLC0415
 
             fal_backend = FalBackend(config.fal)
             await fal_backend.connect()
@@ -141,7 +141,7 @@ def check() -> None:
             typer.echo("Mock backend: always available")
             typer.echo("Status: ready")
         else:
-            from animeforge.backend.comfyui import ComfyUIBackend
+            from animeforge.backend.comfyui import ComfyUIBackend  # noqa: PLC0415
 
             url = config.comfyui.base_url
             comfy_backend = ComfyUIBackend(config.comfyui)
@@ -176,8 +176,8 @@ def export(
     ] = False,
 ) -> None:
     """Export a project as a web package."""
-    from animeforge.models.export import ExportConfig
-    from animeforge.models.project import Project, ProjectLoadError
+    from animeforge.models.export import ExportConfig  # noqa: PLC0415
+    from animeforge.models.project import Project, ProjectLoadError  # noqa: PLC0415
 
     try:
         project = Project.load(project_path)
@@ -187,7 +187,7 @@ def export(
     export_config = ExportConfig(output_dir=output or Path("output"))
 
     if dry_run:
-        from animeforge.pipeline.export import validate_export
+        from animeforge.pipeline.export import validate_export  # noqa: PLC0415
 
         result = validate_export(project, export_config)
         typer.echo("Dry run: export validation")
@@ -201,7 +201,7 @@ def export(
         if not result.valid:
             raise typer.Exit(1)
     else:
-        from animeforge.pipeline.export import export_project
+        from animeforge.pipeline.export import export_project  # noqa: PLC0415
 
         export_project(project, export_config)
         typer.echo(f"Exported to {export_config.output_dir}")
@@ -219,9 +219,9 @@ def preview(
     ] = False,
 ) -> None:
     """Start a live preview server for mock generation."""
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
-    from animeforge.preview_server import PreviewServer
+    from animeforge.preview_server import PreviewServer  # noqa: PLC0415
 
     server = PreviewServer(http_port=port, ws_port=ws_port)
     typer.echo(f"Preview server at http://localhost:{port}")
@@ -234,15 +234,13 @@ def preview(
 
 @app.command()
 def serve(
-    directory: Annotated[
-        Path, typer.Argument(help="Directory to serve")
-    ] = Path("output"),
+    directory: Annotated[Path, typer.Argument(help="Directory to serve")] = Path("output"),
     port: Annotated[int, typer.Option("--port", "-p", help="Port number")] = 3000,
 ) -> None:
     """Serve an exported web package locally."""
-    import http.server
-    import os
-    import socketserver
+    import http.server  # noqa: PLC0415
+    import os  # noqa: PLC0415
+    import socketserver  # noqa: PLC0415
 
     os.chdir(directory)
     handler = http.server.SimpleHTTPRequestHandler
@@ -258,7 +256,7 @@ def serve(
 @app.command()
 def tui() -> None:
     """Launch the interactive TUI."""
-    from animeforge.app import AnimeForgeApp
+    from animeforge.app import AnimeForgeApp  # noqa: PLC0415
 
     app_instance = AnimeForgeApp()
     app_instance.run()
@@ -267,19 +265,17 @@ def tui() -> None:
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
-    version: Annotated[
-        bool, typer.Option("--version", "-v", help="Show version")
-    ] = False,
+    version: Annotated[bool, typer.Option("--version", "-v", help="Show version")] = False,
 ) -> None:
     """AnimeForge - Lo-fi Girl-style interactive anime scene engine."""
     if version:
-        from animeforge import __version__
+        from animeforge import __version__  # noqa: PLC0415
 
         typer.echo(f"animeforge {__version__}")
         raise typer.Exit()
     if ctx.invoked_subcommand is None:
         # Default to TUI when no subcommand
-        from animeforge.app import AnimeForgeApp
+        from animeforge.app import AnimeForgeApp  # noqa: PLC0415
 
         app_instance = AnimeForgeApp()
         app_instance.run()

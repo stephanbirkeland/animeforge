@@ -112,7 +112,7 @@ def test_optimize_png_preserves_alpha(tmp_path):
     """PNG round-trip preserves alpha channel."""
     src = _make_frame(tmp_path, "src.png", color=(0, 128, 255, 100))
     dst = tmp_path / "opt.png"
-    result = optimize_image(src, dst, format="PNG")
+    result = optimize_image(src, dst, img_format="PNG")
 
     assert result == dst
     assert dst.exists()
@@ -124,7 +124,7 @@ def test_optimize_jpeg_drops_alpha(tmp_path):
     """JPEG output converts to RGB — no alpha channel."""
     src = _make_frame(tmp_path, "src.png", color=(0, 128, 255, 100))
     dst = tmp_path / "opt.jpg"
-    optimize_image(src, dst, format="JPEG", quality=80)
+    optimize_image(src, dst, img_format="JPEG", quality=80)
 
     img = Image.open(dst)
     assert img.mode == "RGB"
@@ -134,7 +134,7 @@ def test_optimize_webp_output(tmp_path):
     """WEBP output creates a valid file."""
     src = _make_frame(tmp_path, "src.png")
     dst = tmp_path / "opt.webp"
-    result = optimize_image(src, dst, format="WEBP", quality=90)
+    result = optimize_image(src, dst, img_format="WEBP", quality=90)
 
     assert result == dst
     assert dst.exists()
@@ -146,6 +146,6 @@ def test_optimize_returns_output_path(tmp_path):
     """Return value is the output_path for chaining."""
     src = _make_frame(tmp_path, "src.png")
     dst = tmp_path / "out" / "result.webp"
-    result = optimize_image(src, dst, format="WEBP")
+    result = optimize_image(src, dst, img_format="WEBP")
     assert result == dst
     assert dst.exists()

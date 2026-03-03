@@ -35,7 +35,7 @@ class Project(BaseModel):
             raise ValueError(msg)
         save_path = save_path if save_path.suffix == ".json" else save_path / "project.json"
         save_path.parent.mkdir(parents=True, exist_ok=True)
-        save_path.write_text(self.model_dump_json(indent=2))
+        save_path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
         return save_path
 
     @classmethod
@@ -44,7 +44,7 @@ class Project(BaseModel):
         if path.is_dir():
             path = path / "project.json"
         try:
-            text = path.read_text()
+            text = path.read_text(encoding="utf-8")
         except FileNotFoundError:
             msg = f"project file not found: {path}"
             raise ProjectLoadError(msg) from None

@@ -143,7 +143,10 @@ async def generate_character_animations(
                     shutil.copy2(result.images[0], frame_dest)
                     frame_paths.append(frame_dest)
                     logger.debug(
-                        "  frame %d/%d (seed=%d)", idx + 1, anim.frame_count, result.seed,
+                        "  frame %d/%d (seed=%d)",
+                        idx + 1,
+                        anim.frame_count,
+                        result.seed,
                     )
                 else:
                     logger.warning("  frame %d returned no image", idx)
@@ -159,7 +162,9 @@ async def generate_character_animations(
                 results[anim.id] = sheet_path
                 logger.info(
                     "Sprite sheet for '%s' -> %s (%d frames)",
-                    anim.id, sheet_path, len(frame_paths),
+                    anim.id,
+                    sheet_path,
+                    len(frame_paths),
                 )
 
     return results

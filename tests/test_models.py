@@ -206,7 +206,7 @@ def test_project_load_file_not_found():
 def test_project_load_invalid_json():
     with tempfile.TemporaryDirectory() as tmpdir:
         bad_file = Path(tmpdir) / "project.json"
-        bad_file.write_text("{not valid json!!")
+        bad_file.write_text("{not valid json!!", encoding="utf-8")
         with pytest.raises(ProjectLoadError, match="project file contains invalid JSON"):
             Project.load(bad_file)
 
@@ -214,7 +214,7 @@ def test_project_load_invalid_json():
 def test_project_load_schema_mismatch():
     with tempfile.TemporaryDirectory() as tmpdir:
         bad_file = Path(tmpdir) / "project.json"
-        bad_file.write_text(json.dumps({"unexpected": "data"}))
+        bad_file.write_text(json.dumps({"unexpected": "data"}), encoding="utf-8")
         with pytest.raises(ProjectLoadError, match="project file has invalid structure"):
             Project.load(bad_file)
 
@@ -229,3 +229,89 @@ def test_export_config_image_quality_rejected(bad: int) -> None:
 def test_export_config_image_quality_accepted(good: int) -> None:
     config = ExportConfig(image_quality=good)
     assert config.image_quality == good
+
+
+class TestSceneValidation:
+    """Tests for Scene width/height > 0 constraints."""
+
+    def test_scene_rejects_zero_width(self):
+        with pytest.raises(ValidationError):
+            Scene(name="bad", width=0)
+
+    def test_scene_rejects_negative_width(self):
+        with pytest.raises(ValidationError):
+            Scene(name="bad", width=-1)
+
+    def test_scene_rejects_zero_height(self):
+        with pytest.raises(ValidationError):
+            Scene(name="bad", height=0)
+
+    def test_scene_rejects_negative_height(self):
+        with pytest.raises(ValidationError):
+            Scene(name="bad", height=-100)
+
+    def test_scene_accepts_valid_dimensions(self):
+        scene = Scene(name="ok", width=1, height=1)
+        assert scene.width == 1
+        assert scene.height == 1
+
+
+class TestAnimationDefValidation:
+    """Tests for AnimationDef frame_count >= 1, fps >= 1 constraints."""
+
+    def test_rejects_zero_frame_count(self):
+        with pytest.raises(ValidationError):
+            AnimationDef(id="a", name="A", zone_id="z", pose_sequence="p", frame_count=0)
+
+    def test_rejects_negative_frame_count(self):
+        with pytest.raises(ValidationError):
+            AnimationDef(id="a", name="A", zone_id="z", pose_sequence="p", frame_count=-1)
+
+    def test_rejects_zero_fps(self):
+        with pytest.raises(ValidationError):
+            AnimationDef(id="a", name="A", zone_id="z", pose_sequence="p", fps=0)
+
+    def test_rejects_negative_fps(self):
+        with pytest.raises(ValidationError):
+            AnimationDef(id="a", name="A", zone_id="z", pose_sequence="p", fps=-5)
+
+    def test_accepts_valid_values(self):
+        anim = AnimationDef(id="a", name="A", zone_id="z", pose_sequence="p", frame_count=1, fps=1)
+        assert anim.frame_count == 1
+        assert anim.fps == 1
+
+
+class TestPoseFrameValidation:
+    """Tests for PoseFrame duration_ms > 0 constraint."""
+
+    def test_rejects_zero_duration(self):
+        with pytest.raises(ValidationError):
+            PoseFrame(keypoints=PoseKeypoints(), duration_ms=0)
+
+    def test_rejects_negative_duration(self):
+        with pytest.raises(ValidationError):
+            PoseFrame(keypoints=PoseKeypoints(), duration_ms=-10)
+
+    def test_accepts_valid_duration(self):
+        frame = PoseFrame(keypoints=PoseKeypoints(), duration_ms=1)
+        assert frame.duration_ms == 1
+
+
+class TestCharacterValidation:
+    """Tests for Character ip_adapter_weight 0-1 constraint."""
+
+    def test_rejects_negative_ip_adapter_weight(self):
+        with pytest.raises(ValidationError):
+            Character(name="C", description="d", ip_adapter_weight=-0.1)
+
+    def test_rejects_ip_adapter_weight_over_one(self):
+        with pytest.raises(ValidationError):
+            Character(name="C", description="d", ip_adapter_weight=1.1)
+
+    def test_accepts_ip_adapter_weight_zero(self):
+        char = Character(name="C", description="d", ip_adapter_weight=0.0)
+        assert char.ip_adapter_weight == 0.0
+
+    def test_accepts_ip_adapter_weight_one(self):
+        char = Character(name="C", description="d", ip_adapter_weight=1.0)
+        assert char.ip_adapter_weight == 1.0

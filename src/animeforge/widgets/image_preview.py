@@ -5,11 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PIL import Image
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
+
+_BYTES_PER_UNIT = 1024
 
 
 class ImagePreview(Widget):
@@ -52,7 +55,7 @@ class ImagePreview(Widget):
         image_path: str | Path | None = None,
         *,
         name: str | None = None,
-        id: str | None = None,
+        id: str | None = None,  # noqa: A002 -- required by Textual widget API
         classes: str | None = None,
     ) -> None:
         super().__init__(name=name, id=id, classes=classes)
@@ -121,8 +124,7 @@ class ImagePreview(Widget):
         label_line = "|" + text.center(w - 2) + "|"
         bot = "+" + "-" * (w - 2) + "+"
         lines = [top]
-        for i in range(h - 2):
-            lines.append(label_line if i == (h - 2) // 2 else mid)
+        lines.extend(label_line if i == (h - 2) // 2 else mid for i in range(h - 2))
         lines.append(bot)
         return "\n".join(lines)
 
@@ -137,7 +139,7 @@ class ImagePreview(Widget):
         mid = "|" + " " * (canvas_w - 2) + "|"
 
         dim_label = f"{img_w}x{img_h}"
-        name_line = "|" + label[:canvas_w - 2].center(canvas_w - 2) + "|"
+        name_line = "|" + label[: canvas_w - 2].center(canvas_w - 2) + "|"
         dim_line = "|" + dim_label.center(canvas_w - 2) + "|"
 
         lines = [top]
@@ -156,8 +158,6 @@ class ImagePreview(Widget):
         if self._image_path is None or not self._image_path.exists():
             return None
         try:
-            from PIL import Image
-
             with Image.open(self._image_path) as img:
                 return img.size
         except Exception:  # noqa: BLE001
@@ -166,7 +166,7 @@ class ImagePreview(Widget):
     @staticmethod
     def _format_size(size_bytes: int) -> str:
         for unit in ("B", "KB", "MB", "GB"):
-            if size_bytes < 1024:
+            if size_bytes < _BYTES_PER_UNIT:
                 return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024  # type: ignore[assignment]
+            size_bytes /= _BYTES_PER_UNIT  # type: ignore[assignment]
         return f"{size_bytes:.1f} TB"

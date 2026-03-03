@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from typing import TYPE_CHECKING
 
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -37,7 +38,11 @@ class _SceneCanvas(Static):
         self._season = Season.SUMMER
 
     def set_scene(
-        self, scene: Scene | None, time: TimeOfDay, weather: Weather, season: Season,
+        self,
+        scene: Scene | None,
+        time: TimeOfDay,
+        weather: Weather,
+        season: Season,
     ) -> None:
         self._scene = scene
         self._time = time
@@ -103,7 +108,7 @@ class _SceneCanvas(Static):
                         grid[cy][end_x] = "#"
 
             # Label inside zone
-            label = zone.name[:zw - 2]
+            label = zone.name[: zw - 2]
             label_y = zy + 1
             if 0 < label_y < canvas_h - 1:
                 for i, ch in enumerate(label):
@@ -121,8 +126,6 @@ class _SceneCanvas(Static):
         }
         overlay_ch = weather_indicator.get(self._weather, "")
         if overlay_ch:
-            import random
-
             for _ in range(15):
                 rx = random.randint(1, canvas_w - 2)  # noqa: S311
                 ry = random.randint(1, canvas_h - 2)  # noqa: S311

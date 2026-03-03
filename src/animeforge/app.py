@@ -17,6 +17,10 @@ if TYPE_CHECKING:
     from animeforge.models.project import Project
 
 
+# Textual keeps a default screen + our dashboard on the stack at minimum.
+_MIN_SCREEN_STACK_DEPTH = 2
+
+
 class AnimeForgeApp(App[None]):
     """Main AnimeForge TUI application."""
 
@@ -244,13 +248,14 @@ class AnimeForgeApp(App[None]):
     # ── Lifecycle ────────────────────────────────────────────
     def _get_screen_factories(self) -> dict[str, Callable[[], Screen[Any]]]:
         """Return a dict of screen name -> factory callable."""
-        from animeforge.screens.character_studio import CharacterStudioScreen
-        from animeforge.screens.dashboard import DashboardScreen
-        from animeforge.screens.export_screen import ExportScreen
-        from animeforge.screens.generation import GenerationScreen
-        from animeforge.screens.preview import PreviewScreen
-        from animeforge.screens.scene_editor import SceneEditorScreen
-        from animeforge.screens.settings_screen import SettingsScreen
+        # Lazy imports to avoid circular deps: screens reference AnimeForgeApp
+        from animeforge.screens.character_studio import CharacterStudioScreen  # noqa: PLC0415
+        from animeforge.screens.dashboard import DashboardScreen  # noqa: PLC0415
+        from animeforge.screens.export_screen import ExportScreen  # noqa: PLC0415
+        from animeforge.screens.generation import GenerationScreen  # noqa: PLC0415
+        from animeforge.screens.preview import PreviewScreen  # noqa: PLC0415
+        from animeforge.screens.scene_editor import SceneEditorScreen  # noqa: PLC0415
+        from animeforge.screens.settings_screen import SettingsScreen  # noqa: PLC0415
 
         return {
             "dashboard": DashboardScreen,
@@ -264,21 +269,22 @@ class AnimeForgeApp(App[None]):
 
     def on_mount(self) -> None:
         """Push the initial screen."""
-        from animeforge.screens.dashboard import DashboardScreen
+        # Lazy import to avoid circular deps: screens reference AnimeForgeApp
+        from animeforge.screens.dashboard import DashboardScreen  # noqa: PLC0415
 
         self.push_screen(DashboardScreen())
 
     # ── Actions ──────────────────────────────────────────────
     def action_go_dashboard(self) -> None:
         """Pop all screens and return to dashboard."""
-        while len(self.screen_stack) > 2:  # keep default + dashboard
+        while len(self.screen_stack) > _MIN_SCREEN_STACK_DEPTH:
             self.pop_screen()
         if self.screen.name != "dashboard":
             self.pop_screen()
 
     def action_go_back(self) -> None:
         """Pop the current screen (unless already at dashboard)."""
-        if len(self.screen_stack) > 2:
+        if len(self.screen_stack) > _MIN_SCREEN_STACK_DEPTH:
             self.pop_screen()
 
     def navigate(self, screen_name: str) -> None:

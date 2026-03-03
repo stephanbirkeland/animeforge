@@ -1,7 +1,5 @@
 """Tests for MockBackend."""
 
-import asyncio
-
 import pytest
 
 from animeforge.backend.base import GenerationBackend, GenerationRequest

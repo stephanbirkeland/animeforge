@@ -29,7 +29,7 @@ class PoseFrame(BaseModel):
     """A single frame in a pose animation sequence."""
 
     keypoints: PoseKeypoints
-    duration_ms: int = 83  # ~12fps default
+    duration_ms: int = Field(default=83, gt=0)  # ~12fps default
 
 
 class PoseSequence(BaseModel):

@@ -47,10 +47,7 @@ def generate_rain_sprites(
 
     # Pre-generate raindrop positions.
     num_drops = 40
-    drops = [
-        (rng.randint(0, frame_width), rng.randint(0, frame_height))
-        for _ in range(num_drops)
-    ]
+    drops = [(rng.randint(0, frame_width), rng.randint(0, frame_height)) for _ in range(num_drops)]
 
     for frame_idx in range(frame_count):
         frame = Image.new("RGBA", (frame_width, frame_height), (0, 0, 0, 0))
@@ -153,11 +150,11 @@ def generate_leaf_sprites(
     strip = Image.new("RGBA", (frame_width * frame_count, frame_height), (0, 0, 0, 0))
 
     leaf_colours = [
-        (200, 80, 30, 200),   # burnt orange
-        (180, 50, 20, 190),   # dark red
+        (200, 80, 30, 200),  # burnt orange
+        (180, 50, 20, 190),  # dark red
         (220, 160, 40, 200),  # golden yellow
         (150, 100, 30, 180),  # olive brown
-        (190, 60, 50, 195),   # crimson
+        (190, 60, 50, 195),  # crimson
     ]
 
     num_leaves = 18

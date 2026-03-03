@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from animeforge.models import AnimationDef, Character, Scene, Zone, Rect
-from animeforge.models.enums import Season, TimeOfDay, Weather
+from animeforge.models import AnimationDef, Character, Rect, Scene, Zone
+from animeforge.models.enums import TimeOfDay, Weather
 from animeforge.pipeline.assembly import AssemblyError, assemble_sprite_sheet
 from animeforge.pipeline.consistency import (
     build_character_prompt,
@@ -41,7 +41,9 @@ def test_build_scene_prompt_defaults():
 def test_build_character_prompt():
     char = Character(name="Study Girl", description="anime girl with headphones")
     anim = AnimationDef(id="typing", name="Typing", zone_id="desk", pose_sequence="typing")
-    zone = Zone(id="desk", name="Desk Area", bounds=Rect(x=0, y=0, width=100, height=100), z_index=5)
+    zone = Zone(
+        id="desk", name="Desk Area", bounds=Rect(x=0, y=0, width=100, height=100), z_index=5
+    )
 
     prompt = build_character_prompt(char, anim, zone)
     assert "Study Girl" in prompt
@@ -118,9 +120,7 @@ def test_generate_sakura_sprites_dimensions():
     from PIL import Image as PILImage
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        path = generate_sakura_sprites(
-            Path(tmpdir), frame_count=6, frame_width=64, frame_height=64
-        )
+        path = generate_sakura_sprites(Path(tmpdir), frame_count=6, frame_width=64, frame_height=64)
         img = PILImage.open(path)
         assert img.size == (64 * 6, 64)
 
@@ -138,9 +138,7 @@ def test_assemble_sprite_sheet_zero_byte_raises_assembly_error(tmp_path: Path):
     bad.write_bytes(b"")
 
     with pytest.raises(AssemblyError, match="Frame 1"):
-        assemble_sprite_sheet(
-            [good, bad], tmp_path / "sheet.png", frame_size=(32, 32)
-        )
+        assemble_sprite_sheet([good, bad], tmp_path / "sheet.png", frame_size=(32, 32))
 
 
 def test_assemble_sprite_sheet_error_includes_path(tmp_path: Path):
@@ -148,15 +146,11 @@ def test_assemble_sprite_sheet_error_includes_path(tmp_path: Path):
     bad.write_bytes(b"")
 
     with pytest.raises(AssemblyError, match="missing_frame.png"):
-        assemble_sprite_sheet(
-            [bad], tmp_path / "sheet.png", frame_size=(32, 32)
-        )
+        assemble_sprite_sheet([bad], tmp_path / "sheet.png", frame_size=(32, 32))
 
 
 def test_assemble_sprite_sheet_missing_file_raises_assembly_error(tmp_path: Path):
     missing = tmp_path / "does_not_exist.png"
 
     with pytest.raises(AssemblyError, match="Frame 0"):
-        assemble_sprite_sheet(
-            [missing], tmp_path / "sheet.png", frame_size=(32, 32)
-        )
+        assemble_sprite_sheet([missing], tmp_path / "sheet.png", frame_size=(32, 32))

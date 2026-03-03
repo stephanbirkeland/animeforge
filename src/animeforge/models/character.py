@@ -15,8 +15,8 @@ class AnimationDef(BaseModel):
     name: str
     zone_id: str
     pose_sequence: str  # Reference to poses/*.json
-    frame_count: int = 8
-    fps: int = 12
+    frame_count: int = Field(default=8, ge=1)
+    fps: int = Field(default=12, ge=1)
     loop: bool = True
     sprite_sheet: Path | None = None
 
@@ -37,7 +37,7 @@ class Character(BaseModel):
     name: str
     description: str
     reference_images: list[Path] = Field(default_factory=list)
-    ip_adapter_weight: float = 0.75
+    ip_adapter_weight: float = Field(default=0.75, ge=0.0, le=1.0)
     negative_prompt: str = ""
     animations: list[AnimationDef] = Field(default_factory=list)
     transitions: list[StateTransition] = Field(default_factory=list)
@@ -57,12 +57,22 @@ def create_default_character(
         AnimationDef(id="idle", name="Idle", zone_id=zone_id, pose_sequence="idle"),
         AnimationDef(id="typing", name="Typing", zone_id=zone_id, pose_sequence="typing"),
         AnimationDef(id="reading", name="Reading", zone_id=zone_id, pose_sequence="reading"),
-        AnimationDef(id="drinking", name="Drinking", zone_id=zone_id, pose_sequence="drinking",
-                     loop=False),
-        AnimationDef(id="stretching", name="Stretching", zone_id=zone_id,
-                     pose_sequence="stretching", loop=False),
-        AnimationDef(id="looking_window", name="Looking out window", zone_id=zone_id,
-                     pose_sequence="looking_window"),
+        AnimationDef(
+            id="drinking", name="Drinking", zone_id=zone_id, pose_sequence="drinking", loop=False
+        ),
+        AnimationDef(
+            id="stretching",
+            name="Stretching",
+            zone_id=zone_id,
+            pose_sequence="stretching",
+            loop=False,
+        ),
+        AnimationDef(
+            id="looking_window",
+            name="Looking out window",
+            zone_id=zone_id,
+            pose_sequence="looking_window",
+        ),
     ]
 
     transitions = [

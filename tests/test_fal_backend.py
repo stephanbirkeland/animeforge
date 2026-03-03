@@ -11,7 +11,6 @@ from animeforge.backend.base import GenerationBackend, GenerationRequest
 from animeforge.backend.fal_backend import FalBackend
 from animeforge.config import FalSettings
 
-
 # ── Protocol compliance ──────────────────────────────────────────
 
 

@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any
 
+import httpx
+import tomli_w
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Select, Static, Switch
 
-from animeforge.config import load_config
+from animeforge.config import AppConfig, load_config
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from textual.app import ComposeResult
 
+HTTP_OK = 200
+HTTP_UNAUTHORIZED = 401
 
 _BACKEND_OPTIONS = [
     ("ComfyUI (local GPU)", "comfyui"),
@@ -223,10 +228,6 @@ class SettingsScreen(Screen[None]):
 
     def _save_settings(self) -> None:
         """Collect inputs and write config.toml."""
-        import tomli_w
-
-        from animeforge.config import load_config
-
         config = load_config()
 
         try:
@@ -324,12 +325,10 @@ class SettingsScreen(Screen[None]):
                         lines.append(f'{k} = "{v}"')
             else:
                 lines.append(f'{key} = "{value}"')
-        path.write_text("\n".join(lines) + "\n")
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def _reset_defaults(self) -> None:
         """Reset all inputs to defaults."""
-        from animeforge.config import AppConfig
-
         defaults = AppConfig()
 
         self.query_one("#active-backend", Select).value = defaults.active_backend
@@ -381,11 +380,9 @@ class SettingsScreen(Screen[None]):
 
         async def _check() -> None:
             try:
-                import httpx
-
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     resp = await client.get(url)
-                    if resp.status_code == 200:
+                    if resp.status_code == HTTP_OK:
                         self._set_status(f"Connected to ComfyUI at {host}:{port}")
                     else:
                         self._set_status(f"ComfyUI returned status {resp.status_code}")
@@ -398,8 +395,6 @@ class SettingsScreen(Screen[None]):
 
     def _test_fal_connection(self) -> None:
         """Test fal.ai API connectivity."""
-        import os
-
         api_key = self.query_one("#fal-api-key", Input).value or os.environ.get("FAL_KEY", "")
         if not api_key:
             self._set_status("fal.ai: No API key set (enter key or set FAL_KEY env var)")
@@ -409,14 +404,12 @@ class SettingsScreen(Screen[None]):
 
         async def _check() -> None:
             try:
-                import httpx
-
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.get(
                         "https://queue.fal.run/fal-ai/pony-v7",
                         headers={"Authorization": f"Key {api_key}"},
                     )
-                    if resp.status_code == 401:
+                    if resp.status_code == HTTP_UNAUTHORIZED:
                         self._set_status("fal.ai: Invalid API key")
                     else:
                         self._set_status("fal.ai: Connected successfully")

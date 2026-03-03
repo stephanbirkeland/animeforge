@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -22,12 +23,12 @@ from textual.widgets import (
     Static,
 )
 
+from animeforge.models import ExportConfig, Project
 from animeforge.models.enums import Season, TimeOfDay, Weather
+from animeforge.pipeline.export import export_project
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
-
-    from animeforge.models import ExportConfig, Project
 
 logger = logging.getLogger(__name__)
 
@@ -126,22 +127,9 @@ class ExportScreen(Screen[None]):
 
     def _build_export_config(self) -> ExportConfig:
         """Build ExportConfig from UI state."""
-        from pathlib import Path
-
-        from animeforge.models import ExportConfig
-
-        times = [
-            tod for tod in TimeOfDay
-            if self.query_one(f"#tod-{tod.value}", Checkbox).value
-        ]
-        weathers = [
-            w for w in Weather
-            if self.query_one(f"#weather-{w.value}", Checkbox).value
-        ]
-        seasons = [
-            s for s in Season
-            if self.query_one(f"#season-{s.value}", Checkbox).value
-        ]
+        times = [tod for tod in TimeOfDay if self.query_one(f"#tod-{tod.value}", Checkbox).value]
+        weathers = [w for w in Weather if self.query_one(f"#weather-{w.value}", Checkbox).value]
+        seasons = [s for s in Season if self.query_one(f"#season-{s.value}", Checkbox).value]
 
         fmt_select = self.query_one("#export-format", Select)
         image_format = fmt_select.value if fmt_select.value != Select.BLANK else "webp"
@@ -186,7 +174,12 @@ class ExportScreen(Screen[None]):
         status_label = self.query_one("#export-status", Label)
         self.run_worker(
             functools.partial(
-                self._run_export, proj, export_config, log_widget, bar_widget, status_label,
+                self._run_export,
+                proj,
+                export_config,
+                log_widget,
+                bar_widget,
+                status_label,
             ),
             exclusive=True,
             thread=True,
@@ -209,7 +202,6 @@ class ExportScreen(Screen[None]):
         status_label: Label,
     ) -> None:
         """Run the export pipeline in a worker thread."""
-        from animeforge.pipeline.export import export_project
 
         def _log(msg: str) -> None:
             self.app.call_from_thread(log_widget.write, msg)
@@ -221,9 +213,7 @@ class ExportScreen(Screen[None]):
             self.app.call_from_thread(status_label.update, text)
 
         _log(f"[bold cyan]Exporting[/bold cyan] to {export_config.output_dir}")
-        _log(
-            f"  Format: {export_config.image_format} @ quality {export_config.image_quality}"
-        )
+        _log(f"  Format: {export_config.image_format} @ quality {export_config.image_quality}")
         _log(
             f"  Times: {len(export_config.times)}, "
             f"Weathers: {len(export_config.weathers)}, "
@@ -245,10 +235,7 @@ class ExportScreen(Screen[None]):
             output_path = export_project(proj, export_config)
 
             _bar(100)
-            _log(
-                f"[bold green]Export complete![/bold green] "
-                f"Output written to {output_path}"
-            )
+            _log(f"[bold green]Export complete![/bold green] Output written to {output_path}")
             _status("Export complete!")
         except Exception as exc:
             logger.exception("Export failed")

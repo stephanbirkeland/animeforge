@@ -47,10 +47,16 @@ def sample_character() -> Character:
         description="anime girl with headphones, brown hair, cozy sweater",
         animations=[
             AnimationDef(
-                id="idle", name="Idle", zone_id="desk", pose_sequence="idle",
+                id="idle",
+                name="Idle",
+                zone_id="desk",
+                pose_sequence="idle",
             ),
             AnimationDef(
-                id="typing", name="Typing", zone_id="desk", pose_sequence="typing",
+                id="typing",
+                name="Typing",
+                zone_id="desk",
+                pose_sequence="typing",
             ),
         ],
     )

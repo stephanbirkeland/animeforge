@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -18,6 +19,7 @@ from textual.widgets import (
     Switch,
 )
 
+from animeforge.models import AnimationDef, Character, StateTransition
 from animeforge.models.enums import AnimationState
 
 if TYPE_CHECKING:
@@ -184,8 +186,6 @@ class CharacterStudioScreen(Screen[None]):
 
     def _load_character(self, char: object) -> None:
         """Populate fields from a Character model."""
-        from animeforge.models import Character
-
         if not isinstance(char, Character):
             return
 
@@ -354,10 +354,6 @@ class CharacterStudioScreen(Screen[None]):
     # ── Save Character ───────────────────────────────────────
     def _save_character(self) -> None:
         """Build a Character model from UI fields and save to project."""
-        from pathlib import Path
-
-        from animeforge.models import AnimationDef, Character, StateTransition
-
         name = self.query_one("#char-name", Input).value.strip()
         if not name:
             self._set_status("Character name is required.")

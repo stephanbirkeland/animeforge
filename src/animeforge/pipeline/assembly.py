@@ -90,7 +90,10 @@ def assemble_sprite_sheet(
     sheet.save(output, "PNG")
     logger.info(
         "Assembled sprite sheet: %s (%d frames, %dx%d)",
-        output, n, sheet_w, sheet_h,
+        output,
+        n,
+        sheet_w,
+        sheet_h,
     )
     return output
 
@@ -100,7 +103,7 @@ def optimize_image(
     output_path: Path,
     *,
     quality: int = 85,
-    format: str = "WEBP",
+    img_format: str = "WEBP",
 ) -> Path:
     """Re-encode an image with the given quality and format.
 
@@ -112,10 +115,10 @@ def optimize_image(
         Source image.
     output_path:
         Destination path.  The suffix is **not** auto-changed; caller should
-        ensure it matches *format*.
+        ensure it matches *img_format*.
     quality:
         Compression quality (1-100).  Only meaningful for lossy formats.
-    format:
+    img_format:
         Pillow format string, e.g. ``"WEBP"``, ``"PNG"``, ``"JPEG"``.
 
     Returns
@@ -126,16 +129,16 @@ def optimize_image(
     img: Image.Image = Image.open(input_path)
 
     # Preserve alpha for formats that support it.
-    img = img.convert("RGB") if format.upper() in ("JPEG", "JPG") else img.convert("RGBA")
+    img = img.convert("RGB") if img_format.upper() in ("JPEG", "JPG") else img.convert("RGBA")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     save_kwargs: dict[str, object] = {"quality": quality}
-    if format.upper() == "PNG":
+    if img_format.upper() == "PNG":
         save_kwargs = {"optimize": True}
-    elif format.upper() == "WEBP":
+    elif img_format.upper() == "WEBP":
         save_kwargs["method"] = 6  # best compression
 
-    img.save(output_path, format.upper(), **save_kwargs)
-    logger.info("Optimized %s -> %s (%s q=%d)", input_path, output_path, format, quality)
+    img.save(output_path, img_format.upper(), **save_kwargs)
+    logger.info("Optimized %s -> %s (%s q=%d)", input_path, output_path, img_format, quality)
     return output_path

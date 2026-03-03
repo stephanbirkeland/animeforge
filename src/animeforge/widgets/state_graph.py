@@ -54,7 +54,7 @@ class StateGraph(Widget):
         transitions: list[StateTransition] | None = None,
         *,
         name: str | None = None,
-        id: str | None = None,
+        id: str | None = None,  # noqa: A002 -- required by Textual widget API
         classes: str | None = None,
     ) -> None:
         super().__init__(name=name, id=id, classes=classes)
@@ -97,9 +97,7 @@ class StateGraph(Widget):
         edges: dict[str, list[tuple[str, int, bool]]] = {sid: [] for sid in state_ids}
         for trans in self._transitions:
             if trans.from_state in edges:
-                edges[trans.from_state].append(
-                    (trans.to_state, trans.duration_ms, trans.auto)
-                )
+                edges[trans.from_state].append((trans.to_state, trans.duration_ms, trans.auto))
 
         # Layout: arrange states in rows
         # Simple horizontal layout with connections drawn below
@@ -121,7 +119,7 @@ class StateGraph(Widget):
             center = x_start + node_width // 2
             positions[sid] = center
 
-            label = state_names[sid][:node_width - 2]
+            label = state_names[sid][: node_width - 2]
             padded = label.center(node_width - 2)
 
             row_top += "+" + "-" * (node_width - 2) + "+" + " " * padding
@@ -158,8 +156,7 @@ class StateGraph(Widget):
                     if x1 < total_width:
                         edge_row[x1] = "o"
                     edge_labels.append(
-                        f"  o {from_sid} -> {to_sid} ({duration}ms)"
-                        f"{' [auto]' if auto else ''}"
+                        f"  o {from_sid} -> {to_sid} ({duration}ms){' [auto]' if auto else ''}"
                     )
                     continue
 
@@ -183,8 +180,7 @@ class StateGraph(Widget):
 
                 arrow = "->" if not auto else "=>"
                 edge_labels.append(
-                    f"  {from_sid} {arrow} {to_sid} ({duration}ms)"
-                    f"{' [auto]' if auto else ''}"
+                    f"  {from_sid} {arrow} {to_sid} ({duration}ms){' [auto]' if auto else ''}"
                 )
 
         lines.append("".join(edge_row).rstrip())
@@ -196,9 +192,7 @@ class StateGraph(Widget):
             if cx < total_width:
                 # Check if any edge points TO this node
                 is_target = any(
-                    to_sid == sid
-                    for targets in edges.values()
-                    for to_sid, _, _ in targets
+                    to_sid == sid for targets in edges.values() for to_sid, _, _ in targets
                 )
                 if is_target:
                     connector_row2[cx] = "v"

@@ -74,7 +74,7 @@ class ZoneEditor(Widget):
         zones: list[Zone] | None = None,
         *,
         name: str | None = None,
-        id: str | None = None,
+        id: str | None = None,  # noqa: A002 -- required by Textual widget API
         classes: str | None = None,
     ) -> None:
         super().__init__(name=name, id=id, classes=classes)

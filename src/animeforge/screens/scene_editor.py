@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -17,7 +19,9 @@ from textual.widgets import (
     Select,
     Static,
 )
+from textual.widgets._data_table import CellDoesNotExist
 
+from animeforge.models import Layer, Rect, Scene, Zone
 from animeforge.models.enums import Season, TimeOfDay, Weather
 
 if TYPE_CHECKING:
@@ -169,8 +173,6 @@ class SceneEditorScreen(Screen[None]):
 
     def _load_scene(self, scene: object) -> None:
         """Populate fields from a Scene model."""
-        from animeforge.models import Scene
-
         if not isinstance(scene, Scene):
             return
 
@@ -254,7 +256,7 @@ class SceneEditorScreen(Screen[None]):
             self.query_one("#zone-anims", Input).value = str(cells[7])
             self.query_one("#zone-interactive", Checkbox).value = str(cells[8]).lower() == "yes"
             self._editing_row_key = row_key
-        except Exception:  # noqa: BLE001
+        except CellDoesNotExist:
             self._set_status("Select a zone row first.")
 
     def _save_zone_from_fields(self) -> None:
@@ -306,16 +308,11 @@ class SceneEditorScreen(Screen[None]):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
             table.remove_row(row_key)
             self._set_status("Zone deleted.")
-        except Exception:  # noqa: BLE001
+        except CellDoesNotExist:
             self._set_status("Select a zone to delete.")
 
     # ── Background ───────────────────────────────────────────
     def _import_background(self) -> None:
-        import shutil
-        from pathlib import Path
-
-        from animeforge.models import Layer
-
         path_str = self.query_one("#bg-image-path", Input).value.strip()
         if not path_str:
             self._set_status("Enter a background image path first.")
@@ -371,7 +368,7 @@ class SceneEditorScreen(Screen[None]):
 
         try:
             proj.save()
-        except Exception as exc:  # noqa: BLE001
+        except (OSError, ValueError) as exc:
             self._set_status(f"Error saving before generation: {exc}")
             return
 
@@ -382,8 +379,6 @@ class SceneEditorScreen(Screen[None]):
     # ── Save ─────────────────────────────────────────────────
     def _save_scene(self) -> None:
         """Build a Scene model from the UI and save to current project."""
-        from animeforge.models import Rect, Scene, Zone
-
         scene_name = self.query_one("#scene-name", Input).value.strip() or "Untitled"
 
         try:
@@ -421,16 +416,12 @@ class SceneEditorScreen(Screen[None]):
             try:
                 z_index = int(cells[6])
             except ValueError:
-                self._set_status(
-                    f"Invalid Z-Index in zone '{zone_label}' — must be an integer."
-                )
+                self._set_status(f"Invalid Z-Index in zone '{zone_label}' — must be an integer.")
                 return
 
             anims_raw = str(cells[7]).strip()
             character_animations = (
-                [a.strip() for a in anims_raw.split(",") if a.strip()]
-                if anims_raw
-                else []
+                [a.strip() for a in anims_raw.split(",") if a.strip()] if anims_raw else []
             )
             interactive = str(cells[8]).lower() == "yes"
 
@@ -481,7 +472,7 @@ class SceneEditorScreen(Screen[None]):
             try:
                 proj.save()
                 self._set_status(f"Scene '{scene_name}' saved to project.")
-            except Exception as exc:  # noqa: BLE001
+            except (OSError, ValueError) as exc:
                 self._set_status(f"Error saving: {exc}")
         else:
             self._set_status("No project loaded. Create a project from the Dashboard first.")

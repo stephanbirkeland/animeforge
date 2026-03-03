@@ -6,7 +6,7 @@ from pathlib import Path
 import jinja2
 import pytest
 
-from animeforge.models import ExportConfig, Project, Scene
+from animeforge.models import ExportConfig, Project
 from animeforge.pipeline import export as export_module
 from animeforge.pipeline.export import ExportError, export_project
 
@@ -46,7 +46,7 @@ def test_export_creates_scene_json(_populated_project: Project, tmp_path: Path):
     scene_json = out / "scene.json"
     assert scene_json.exists()
 
-    data = json.loads(scene_json.read_text())
+    data = json.loads(scene_json.read_text(encoding="utf-8"))
     # Top-level backward-compat keys
     assert data["name"] == _populated_project.scene.name
     assert data["width"] == 1920
@@ -71,7 +71,7 @@ def test_export_creates_index_html(_populated_project: Project, tmp_path: Path):
     index = out / "index.html"
     assert index.exists()
 
-    content = index.read_text()
+    content = index.read_text(encoding="utf-8")
     assert "AnimeForge" in content
     assert "scene-loader.js" in content
     assert "animeforge-runtime.js" in content
@@ -100,7 +100,7 @@ def test_export_creates_backgrounds_dir(_populated_project: Project, tmp_path: P
 def test_export_scene_json_has_zones(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
     out = export_project(_populated_project, config)
-    data = json.loads((out / "scene.json").read_text())
+    data = json.loads((out / "scene.json").read_text(encoding="utf-8"))
     assert len(data["zones"]) == 1
     zone = data["zones"][0]
     assert zone["id"] == "desk"
@@ -115,7 +115,8 @@ def test_export_scene_json_has_zones(_populated_project: Project, tmp_path: Path
 
 
 def test_export_raises_on_corrupt_sprite_sheet(
-    sample_project: Project, tmp_path: Path,
+    sample_project: Project,
+    tmp_path: Path,
 ):
     """Image.open() on a zero-byte sprite sheet must raise ExportError."""
     # Create a zero-byte file that exists but is not a valid image.
@@ -132,7 +133,9 @@ def test_export_raises_on_corrupt_sprite_sheet(
 
 
 def test_css_template_syntax_error_propagates(
-    _populated_project: Project, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    _populated_project: Project,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """TemplateSyntaxError in scene.css.jinja2 must NOT be silently swallowed."""
     original_env_class = export_module.Environment
@@ -141,7 +144,10 @@ def test_css_template_syntax_error_propagates(
         def get_template(self, name, *a, **kw):
             if name == "scene.css.jinja2":
                 raise jinja2.TemplateSyntaxError(
-                    message="unexpected '{'", lineno=1, name=name, filename=name,
+                    message="unexpected '{'",
+                    lineno=1,
+                    name=name,
+                    filename=name,
                 )
             return super().get_template(name, *a, **kw)
 

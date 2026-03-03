@@ -11,6 +11,8 @@ from textual.widgets import Label, ProgressBar, Static
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
+_PROGRESS_COMPLETE = 100
+
 
 class _TaskEntry(Static):
     """Single task with label, progress bar, and status."""
@@ -55,7 +57,7 @@ class _TaskEntry(Static):
         status_label = self.query_one(".te-status", Label)
         if status:
             status_label.update(status)
-        elif pct >= 100:
+        elif pct >= _PROGRESS_COMPLETE:
             status_label.update("Done")
         elif pct > 0:
             status_label.update(f"{pct:.0f}%")
@@ -119,7 +121,7 @@ class ProgressPanel(Widget):
         title: str = "Progress",
         *,
         name: str | None = None,
-        id: str | None = None,
+        id: str | None = None,  # noqa: A002 -- required by Textual widget API
         classes: str | None = None,
     ) -> None:
         super().__init__(name=name, id=id, classes=classes)
@@ -152,13 +154,13 @@ class ProgressPanel(Widget):
         entry = self.query_one(f"#te-{task_id}", _TaskEntry)
         entry.set_progress(pct, status)
 
-        if pct >= 100 and old_pct < 100:
+        if pct >= _PROGRESS_COMPLETE and old_pct < _PROGRESS_COMPLETE:
             self.post_message(self.TaskCompleted(task_id))
 
         # Update overall
         self._update_overall()
 
-        if all(p >= 100 for _, p in self._tasks.values()):
+        if all(p >= _PROGRESS_COMPLETE for _, p in self._tasks.values()):
             self.post_message(self.AllCompleted())
 
     def _update_overall(self) -> None:

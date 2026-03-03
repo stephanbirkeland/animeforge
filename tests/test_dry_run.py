@@ -53,9 +53,7 @@ class TestValidateExport:
         assert RUNTIME_JS_FILENAME in js_check.message
 
     def test_missing_template(self, sample_project: Project, sample_export_config: ExportConfig):
-        template_dir = (
-            Path(__file__).resolve().parent.parent / "src" / "animeforge" / "templates"
-        )
+        template_dir = Path(__file__).resolve().parent.parent / "src" / "animeforge" / "templates"
         template_path = template_dir / "index.html.jinja2"
 
         original_exists = Path.exists

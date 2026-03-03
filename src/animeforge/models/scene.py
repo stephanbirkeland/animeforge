@@ -60,8 +60,8 @@ class Scene(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     name: str
     description: str = ""
-    width: int = 1920
-    height: int = 1080
+    width: int = Field(default=1920, gt=0)
+    height: int = Field(default=1080, gt=0)
     layers: list[Layer] = Field(default_factory=list)
     zones: list[Zone] = Field(default_factory=list)
     effects: list[EffectDef] = Field(default_factory=list)

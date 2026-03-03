@@ -7,9 +7,12 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import fal_client
 import httpx
 
 from animeforge.backend.base import GenerationRequest, GenerationResult
+
+HTTP_UNAUTHORIZED = 401
 
 if TYPE_CHECKING:
     from animeforge.backend.base import ProgressCallback
@@ -51,7 +54,7 @@ class FalBackend:
                 )
                 # 401/403 means key is invalid, but the service is up
                 # 200/422 means the service is up and key works
-                return resp.status_code != 401
+                return resp.status_code != HTTP_UNAUTHORIZED
         except (httpx.HTTPError, OSError):
             return False
 
@@ -61,8 +64,6 @@ class FalBackend:
         progress_callback: ProgressCallback | None = None,
     ) -> GenerationResult:
         """Generate images via fal.ai API."""
-        import fal_client
-
         endpoint = self._select_endpoint(request)
         params = await self._build_params(request)
 
@@ -161,13 +162,13 @@ class FalBackend:
 
     async def _prepare_image_url(self, image_path: Path) -> str:
         """Upload a local image to fal CDN and return the URL."""
-        import fal_client
-
         url: str = fal_client.upload_file(image_path)
         return url
 
     async def _download_images(
-        self, result: dict[str, Any], request: GenerationRequest,
+        self,
+        result: dict[str, Any],
+        request: GenerationRequest,
     ) -> list[Path]:
         """Download generated images from fal CDN to local output directory."""
         images_data = result.get("images", [])

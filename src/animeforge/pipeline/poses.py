@@ -15,6 +15,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Minimum number of elements in a keypoint tuple to include a confidence value.
+_MIN_POINT_LENGTH_FOR_CONFIDENCE = 2
+
+# Keypoints with confidence below this threshold are treated as undetected.
+MIN_KEYPOINT_CONFIDENCE = 0.1
+
 # OpenPose skeleton connections (pairs of keypoint names to draw lines between).
 SKELETON_CONNECTIONS: list[tuple[str, str]] = [
     ("nose", "neck"),
@@ -172,7 +178,7 @@ def _keypoints_to_pixel_dict(
     result: dict[str, tuple[int, int]] = {}
     for field in PoseKeypoints.model_fields:
         point = getattr(kp, field)
-        confidence = point[2] if len(point) > 2 else 1.0
-        if confidence > 0.1:
+        confidence = point[2] if len(point) > _MIN_POINT_LENGTH_FOR_CONFIDENCE else 1.0
+        if confidence > MIN_KEYPOINT_CONFIDENCE:
             result[field] = (int(point[0] * width), int(point[1] * height))
     return result

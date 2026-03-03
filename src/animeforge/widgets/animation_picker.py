@@ -80,7 +80,7 @@ class AnimationPicker(Widget):
         animations: list[AnimationDef] | None = None,
         *,
         name: str | None = None,
-        id: str | None = None,
+        id: str | None = None,  # noqa: A002 -- required by Textual widget API
         classes: str | None = None,
     ) -> None:
         super().__init__(name=name, id=id, classes=classes)
@@ -203,47 +203,11 @@ class AnimationPicker(Widget):
     def _get_pose_art(state: str) -> str:
         """Return a simple ASCII pose for the given state."""
         poses = {
-            "idle": (
-                "  O  \n"
-                " /|\\ \n"
-                " / \\ \n"
-                "     \n"
-                "~ relaxed stance ~"
-            ),
-            "typing": (
-                "  O  \n"
-                " /|\\ \n"
-                " _||_\n"
-                " / \\ \n"
-                "~ fingers on keyboard ~"
-            ),
-            "reading": (
-                "  O  \n"
-                " /|] \n"
-                " / \\ \n"
-                "     \n"
-                "~ holding a book ~"
-            ),
-            "drinking": (
-                "  O  \n"
-                " /|D \n"
-                " / \\ \n"
-                "     \n"
-                "~ sipping coffee ~"
-            ),
-            "stretching": (
-                " \\O/ \n"
-                "  |  \n"
-                " / \\ \n"
-                "     \n"
-                "~ arms up stretch ~"
-            ),
-            "looking_window": (
-                "  O > \n"
-                " /|\\  \n"
-                " / \\  \n"
-                "      \n"
-                "~ gazing outside ~"
-            ),
+            "idle": ("  O  \n /|\\ \n / \\ \n     \n~ relaxed stance ~"),
+            "typing": ("  O  \n /|\\ \n _||_\n / \\ \n~ fingers on keyboard ~"),
+            "reading": ("  O  \n /|] \n / \\ \n     \n~ holding a book ~"),
+            "drinking": ("  O  \n /|D \n / \\ \n     \n~ sipping coffee ~"),
+            "stretching": (" \\O/ \n  |  \n / \\ \n     \n~ arms up stretch ~"),
+            "looking_window": ("  O > \n /|\\  \n / \\  \n      \n~ gazing outside ~"),
         }
         return poses.get(state, "  O\n /|\\\n / \\\n~ unknown pose ~")

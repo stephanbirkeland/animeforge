@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 class ExportError(Exception):
     """Raised when the export pipeline encounters an unrecoverable error."""
 
+
 # Expected runtime JS that ships with the package.
 RUNTIME_JS_FILENAME = "animeforge-runtime.js"
 SCENE_LOADER_JS_FILENAME = "scene-loader.js"
@@ -213,15 +214,17 @@ def export_project(
                 ext = config.image_format.lower()
                 dest_name = f"bg_{layer.id}_{time.value}.{ext}"
                 dest = bg_dir / dest_name
-                optimize_image(src, dest, quality=config.image_quality, format=ext)
+                optimize_image(src, dest, quality=config.image_quality, img_format=ext)
                 layer_images[time.value] = f"backgrounds/{dest_name}"
             else:
                 logger.warning("Background source missing: %s", src)
-        layers_manifest.append({
-            "depth": layer.id,
-            "parallax_factor": layer.parallax_factor,
-            "images": layer_images,
-        })
+        layers_manifest.append(
+            {
+                "depth": layer.id,
+                "parallax_factor": layer.parallax_factor,
+                "images": layer_images,
+            }
+        )
 
     # ------------------------------------------------------------------
     # 2. Copy / optimise character sprite sheets
@@ -237,29 +240,32 @@ def export_project(
                 dest = char_dir / dest_name
                 try:
                     optimize_image(
-                        anim.sprite_sheet, dest,
-                        quality=config.image_quality, format=ext,
+                        anim.sprite_sheet,
+                        dest,
+                        quality=config.image_quality,
+                        img_format=ext,
                     )
                     # Determine frame dimensions from the sprite sheet image.
                     sheet_img = Image.open(anim.sprite_sheet)
                     sheet_w, sheet_h = sheet_img.size
                 except (OSError, UnidentifiedImageError) as exc:
                     raise ExportError(
-                        f"Cannot open sprite sheet for '{anim.id}': "
-                        f"{anim.sprite_sheet}"
+                        f"Cannot open sprite sheet for '{anim.id}': {anim.sprite_sheet}"
                     ) from exc
                 frame_w = sheet_w // max(anim.frame_count, 1)
                 frame_h = sheet_h
 
-                animations_manifest.append({
-                    "name": anim.id,
-                    "sprite_sheet": f"characters/{dest_name}",
-                    "frame_width": frame_w,
-                    "frame_height": frame_h,
-                    "frame_count": anim.frame_count,
-                    "fps": anim.fps,
-                    "loop": anim.loop,
-                })
+                animations_manifest.append(
+                    {
+                        "name": anim.id,
+                        "sprite_sheet": f"characters/{dest_name}",
+                        "frame_width": frame_w,
+                        "frame_height": frame_h,
+                        "frame_count": anim.frame_count,
+                        "fps": anim.fps,
+                        "loop": anim.loop,
+                    }
+                )
             else:
                 logger.warning("Sprite sheet missing for animation '%s'", anim.id)
 
@@ -274,8 +280,10 @@ def export_project(
             dest_name = f"{effect.id}.{ext}"
             dest = fx_dir / dest_name
             optimize_image(
-                effect.sprite_sheet, dest,
-                quality=config.image_quality, format=ext,
+                effect.sprite_sheet,
+                dest,
+                quality=config.image_quality,
+                img_format=ext,
             )
             entry: dict[str, object] = {
                 "id": effect.id,
@@ -336,7 +344,7 @@ def export_project(
     }
 
     scene_json_path = out / "scene.json"
-    scene_json_path.write_text(json.dumps(scene_data, indent=2))
+    scene_json_path.write_text(json.dumps(scene_data, indent=2), encoding="utf-8")
     logger.info("Wrote %s", scene_json_path)
 
     # ------------------------------------------------------------------
@@ -351,7 +359,8 @@ def export_project(
         logger.info("Copied runtime JS -> %s", runtime_dest)
     else:
         logger.warning(
-            "Runtime JS not found at %s; output will be incomplete", runtime_src,
+            "Runtime JS not found at %s; output will be incomplete",
+            runtime_src,
         )
 
     loader_src = runtime_dir / SCENE_LOADER_JS_FILENAME
@@ -361,7 +370,8 @@ def export_project(
         logger.info("Copied scene-loader JS -> %s", loader_dest)
     else:
         logger.warning(
-            "Scene-loader JS not found at %s; output may be incomplete", loader_src,
+            "Scene-loader JS not found at %s; output may be incomplete",
+            loader_src,
         )
 
     # ------------------------------------------------------------------
@@ -379,9 +389,7 @@ def export_project(
     animations = []
     default_animation = "idle"
     if project.character:
-        animations = [
-            {"id": a.id, "name": a.name} for a in project.character.animations
-        ]
+        animations = [{"id": a.id, "name": a.name} for a in project.character.animations]
         default_animation = project.character.default_animation
 
     index_html = index_tpl.render(
@@ -401,7 +409,7 @@ def export_project(
         scene_loader_js=SCENE_LOADER_JS_FILENAME,
     )
     index_path = out / "index.html"
-    index_path.write_text(index_html)
+    index_path.write_text(index_html, encoding="utf-8")
     logger.info("Rendered %s", index_path)
 
     # scene.css
@@ -413,12 +421,12 @@ def export_project(
             height=scene.height,
         )
         css_path = out / "scene.css"
-        css_path.write_text(scene_css)
+        css_path.write_text(scene_css, encoding="utf-8")
         logger.info("Rendered %s", css_path)
     except TemplateNotFound:
         # Template may not exist yet; create a minimal fallback.
         css_path = out / "scene.css"
-        css_path.write_text(_fallback_css(scene.width, scene.height))
+        css_path.write_text(_fallback_css(scene.width, scene.height), encoding="utf-8")
         logger.info("Wrote fallback %s (no scene.css.jinja2 template)", css_path)
 
     # ------------------------------------------------------------------
