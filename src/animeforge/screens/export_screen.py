@@ -70,6 +70,13 @@ class ExportScreen(Screen[None]):
                     yield Checkbox("Include Retina (@2x)", value=False, id="export-retina")
                     yield Checkbox("Include Preview HTML", value=True, id="export-preview")
 
+                yield Label("Animated Export")
+                yield Select(
+                    [("None", "none"), ("GIF", "gif"), ("APNG", "apng")],
+                    value="none",
+                    id="export-animated-format",
+                )
+
             # ── Time of Day ──────────────────────────────────
             with Vertical(classes="card"):
                 yield Static("Times of Day to Export", classes="card-title")
@@ -140,6 +147,10 @@ class ExportScreen(Screen[None]):
             self._set_status("Invalid Image Quality — must be an integer (1-100).")
             raise
 
+        anim_select = self.query_one("#export-animated-format", Select)
+        anim_value = anim_select.value if anim_select.value != Select.BLANK else "none"
+        animated_format = str(anim_value) if anim_value != "none" else None
+
         return ExportConfig(
             output_dir=Path(self.query_one("#export-dir", Input).value),
             image_quality=image_quality,
@@ -149,6 +160,7 @@ class ExportScreen(Screen[None]):
             times=times,
             weathers=weathers,
             seasons=seasons,
+            animated_format=animated_format,  # type: ignore[arg-type]
         )
 
     def _start_export(self) -> None:
