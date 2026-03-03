@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnimeForge Scene",
+  "description": "Schema for the scene.json file consumed by the AnimeForge JavaScript runtime.",
+  "type": "object",
+  "required": ["version", "meta", "layers", "animations", "effects", "zones", "initial"],
+  "properties": {
+    "version": {
+      "type": "integer"
+    },
+    "meta": {
+      "type": "object",
+      "required": ["name", "width", "height"],
+      "properties": {
+        "name": { "type": "string" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["depth", "parallax_factor", "images"],
+        "properties": {
+          "depth": { "type": "string" },
+          "parallax_factor": { "type": "number" },
+          "images": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "animations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "sprite_sheet", "frame_width", "frame_height", "fps"],
+        "properties": {
+          "name": { "type": "string" },
+          "sprite_sheet": { "type": "string" },
+          "frame_width": { "type": "integer", "minimum": 1 },
+          "frame_height": { "type": "integer", "minimum": 1 },
+          "frame_count": { "type": "integer", "minimum": 1 },
+          "fps": { "type": "number", "minimum": 0 },
+          "loop": { "type": "boolean" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "sprite_sheet": { "type": "string" },
+          "weather_trigger": { "type": "string" },
+          "season_trigger": { "type": "string" },
+          "particle_config": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "y", "width", "height", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "x": { "type": "number" },
+          "y": { "type": "number" },
+          "width": { "type": "number" },
+          "height": { "type": "number" },
+          "type": { "type": "string" },
+          "scale": { "type": "number" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "initial": {
+      "type": "object",
+      "required": ["time", "season", "weather", "animation"],
+      "properties": {
+        "time": { "type": "string" },
+        "season": { "type": "string" },
+        "weather": { "type": "string" },
+        "animation": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
