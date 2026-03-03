@@ -21,7 +21,7 @@ class ComfyUISettings(BaseSettings):
     """ComfyUI backend configuration."""
 
     host: str = "127.0.0.1"
-    port: int = 8188
+    port: int = Field(default=8188, ge=1, le=65535)
     use_ssl: bool = False
 
     @property

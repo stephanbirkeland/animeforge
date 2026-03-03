@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from animeforge.models import (
     AnimationDef,
@@ -216,3 +217,15 @@ def test_project_load_schema_mismatch():
         bad_file.write_text(json.dumps({"unexpected": "data"}))
         with pytest.raises(ProjectLoadError, match="project file has invalid structure"):
             Project.load(bad_file)
+
+
+@pytest.mark.parametrize("bad", [0, -1, 101, 200])
+def test_export_config_image_quality_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        ExportConfig(image_quality=bad)
+
+
+@pytest.mark.parametrize("good", [1, 50, 85, 100])
+def test_export_config_image_quality_accepted(good: int) -> None:
+    config = ExportConfig(image_quality=good)
+    assert config.image_quality == good
