@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PIL import Image
 
@@ -133,7 +133,7 @@ def optimize_image(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    save_kwargs: dict[str, object] = {"quality": quality}
+    save_kwargs: dict[str, Any] = {"quality": quality}
     if img_format.upper() == "PNG":
         save_kwargs = {"optimize": True}
     elif img_format.upper() == "WEBP":
