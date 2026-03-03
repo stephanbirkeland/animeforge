@@ -14,6 +14,7 @@ from PIL import Image, UnidentifiedImageError
 
 from animeforge.config import AppConfig, load_config
 from animeforge.pipeline.assembly import optimize_image
+from animeforge.pipeline.validation import validate_scene_json
 
 if TYPE_CHECKING:
     from animeforge.models import ExportConfig, Project
@@ -342,6 +343,8 @@ def export_project(
         "default_weather": scene.default_weather.value,
         "default_season": scene.default_season.value,
     }
+
+    validate_scene_json(scene_data)
 
     scene_json_path = out / "scene.json"
     scene_json_path.write_text(json.dumps(scene_data, indent=2), encoding="utf-8")
