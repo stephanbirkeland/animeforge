@@ -40,7 +40,8 @@ def generate_rain_sprites(
     Returns the path to the saved sprite strip PNG.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    rng = random.Random(seed)
+    # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
+    rng = random.Random(seed)  # noqa: S311
 
     strip = Image.new("RGBA", (frame_width * frame_count, frame_height), (0, 0, 0, 0))
 
@@ -91,7 +92,8 @@ def generate_snow_sprites(
     Returns the path to the saved sprite strip PNG.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    rng = random.Random(seed)
+    # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
+    rng = random.Random(seed)  # noqa: S311
 
     strip = Image.new("RGBA", (frame_width * frame_count, frame_height), (0, 0, 0, 0))
 
@@ -145,7 +147,8 @@ def generate_leaf_sprites(
     Returns the path to the saved sprite strip PNG.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    rng = random.Random(seed)
+    # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
+    rng = random.Random(seed)  # noqa: S311
 
     strip = Image.new("RGBA", (frame_width * frame_count, frame_height), (0, 0, 0, 0))
 
@@ -219,7 +222,8 @@ def generate_sakura_sprites(
     Returns the path to the saved sprite strip PNG.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    rng = random.Random(seed)
+    # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
+    rng = random.Random(seed)  # noqa: S311
 
     strip = Image.new("RGBA", (frame_width * frame_count, frame_height), (0, 0, 0, 0))
 
