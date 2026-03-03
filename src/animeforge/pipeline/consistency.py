@@ -86,9 +86,7 @@ def build_scene_prompt(
     parts.append(SEASON_MODIFIERS.get(season, ""))
 
     # Include layer descriptions if present (layer ids often carry meaning).
-    for layer in scene.layers:
-        if layer.id:
-            parts.append(layer.id.replace("_", " "))
+    parts.extend(layer.id.replace("_", " ") for layer in scene.layers if layer.id)
 
     return ", ".join(p for p in parts if p)
 
