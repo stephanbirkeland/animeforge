@@ -1,6 +1,6 @@
 """AnimeForge generation pipeline - orchestrates AI asset creation."""
 
-from animeforge.pipeline.assembly import assemble_sprite_sheet, optimize_image
+from animeforge.pipeline.assembly import AssemblyError, assemble_sprite_sheet, optimize_image
 from animeforge.pipeline.character_gen import generate_character_animations
 from animeforge.pipeline.consistency import (
     build_character_prompt,
@@ -18,6 +18,7 @@ from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence
 from animeforge.pipeline.scene_gen import generate_scene_backgrounds
 
 __all__ = [
+    "AssemblyError",
     "assemble_sprite_sheet",
     "build_character_prompt",
     "build_negative_prompt",

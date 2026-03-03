@@ -13,6 +13,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class AssemblyError(RuntimeError):
+    """Raised when sprite sheet assembly fails due to missing or corrupt frames."""
+
+
 def assemble_sprite_sheet(
     frames: list[Path],
     output: Path,
@@ -60,7 +64,14 @@ def assemble_sprite_sheet(
     sheet = Image.new("RGBA", (sheet_w, sheet_h), (0, 0, 0, 0))
 
     for idx, frame_path in enumerate(frames):
-        img = Image.open(frame_path).convert("RGBA")
+        try:
+            img = Image.open(frame_path).convert("RGBA")
+        except OSError as exc:
+            msg = f"Frame {idx} not found or unreadable: {frame_path}"
+            raise AssemblyError(msg) from exc
+        except Exception as exc:
+            msg = f"Frame {idx} is not a valid image: {frame_path}"
+            raise AssemblyError(msg) from exc
 
         # Resize if needed.
         if img.size != (fw, fh):

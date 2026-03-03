@@ -3,8 +3,12 @@
 import tempfile
 from pathlib import Path
 
+import pytest
+from PIL import Image
+
 from animeforge.models import AnimationDef, Character, Scene, Zone, Rect
 from animeforge.models.enums import Season, TimeOfDay, Weather
+from animeforge.pipeline.assembly import AssemblyError, assemble_sprite_sheet
 from animeforge.pipeline.consistency import (
     build_character_prompt,
     build_negative_prompt,
@@ -111,11 +115,48 @@ def test_generate_sakura_sprites():
 
 
 def test_generate_sakura_sprites_dimensions():
-    from PIL import Image
+    from PIL import Image as PILImage
 
     with tempfile.TemporaryDirectory() as tmpdir:
         path = generate_sakura_sprites(
             Path(tmpdir), frame_count=6, frame_width=64, frame_height=64
         )
-        img = Image.open(path)
+        img = PILImage.open(path)
         assert img.size == (64 * 6, 64)
+
+
+def _make_valid_frame(path: Path, size: tuple[int, int] = (32, 32)) -> None:
+    """Create a small valid RGBA PNG at *path*."""
+    img = Image.new("RGBA", size, (255, 0, 0, 255))
+    img.save(path, "PNG")
+
+
+def test_assemble_sprite_sheet_zero_byte_raises_assembly_error(tmp_path: Path):
+    good = tmp_path / "frame0.png"
+    bad = tmp_path / "frame1.png"
+    _make_valid_frame(good)
+    bad.write_bytes(b"")
+
+    with pytest.raises(AssemblyError, match="Frame 1"):
+        assemble_sprite_sheet(
+            [good, bad], tmp_path / "sheet.png", frame_size=(32, 32)
+        )
+
+
+def test_assemble_sprite_sheet_error_includes_path(tmp_path: Path):
+    bad = tmp_path / "missing_frame.png"
+    bad.write_bytes(b"")
+
+    with pytest.raises(AssemblyError, match="missing_frame.png"):
+        assemble_sprite_sheet(
+            [bad], tmp_path / "sheet.png", frame_size=(32, 32)
+        )
+
+
+def test_assemble_sprite_sheet_missing_file_raises_assembly_error(tmp_path: Path):
+    missing = tmp_path / "does_not_exist.png"
+
+    with pytest.raises(AssemblyError, match="Frame 0"):
+        assemble_sprite_sheet(
+            [missing], tmp_path / "sheet.png", frame_size=(32, 32)
+        )
