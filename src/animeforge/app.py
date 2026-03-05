@@ -236,6 +236,10 @@ class AnimeForgeApp(App[None]):
     BINDINGS: ClassVar[list[BindingType]] = [
         Binding("q", "quit", "Quit", show=True),
         Binding("d", "go_dashboard", "Dashboard", show=True),
+        Binding("g", "go_generation", "Generate", show=True),
+        Binding("e", "go_export", "Export", show=True),
+        Binding("c", "go_character", "Character", show=True),
+        Binding("s", "go_scene", "Scene", show=True),
         Binding("escape", "go_back", "Back", show=False),
     ]
 
@@ -286,6 +290,36 @@ class AnimeForgeApp(App[None]):
         """Pop the current screen (unless already at dashboard)."""
         if len(self.screen_stack) > _MIN_SCREEN_STACK_DEPTH:
             self.pop_screen()
+
+    def _require_project(self, screen_name: str) -> bool:
+        """Check if a project is loaded; notify if not. Return True if OK."""
+        if self._current_project is not None:
+            return True
+        self.notify(
+            f"No project loaded. Open a project first to access {screen_name}.",
+            severity="warning",
+        )
+        return False
+
+    def action_go_generation(self) -> None:
+        """Navigate to the Generation screen (requires a loaded project)."""
+        if self._require_project("Generation"):
+            self.navigate("generation")
+
+    def action_go_export(self) -> None:
+        """Navigate to the Export screen (requires a loaded project)."""
+        if self._require_project("Export"):
+            self.navigate("export")
+
+    def action_go_character(self) -> None:
+        """Navigate to the Character Studio (requires a loaded project)."""
+        if self._require_project("Character Studio"):
+            self.navigate("character_studio")
+
+    def action_go_scene(self) -> None:
+        """Navigate to the Scene Editor (requires a loaded project)."""
+        if self._require_project("Scene Editor"):
+            self.navigate("scene_editor")
 
     def navigate(self, screen_name: str) -> None:
         """Push a new screen instance by name."""
