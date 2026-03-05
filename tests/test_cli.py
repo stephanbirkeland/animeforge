@@ -98,7 +98,7 @@ def test_create_project_verifies_json_content(tmp_path):
     data = json.loads((project_dir / "project.json").read_text())
     assert data["name"] == "json-check"
     assert data["scene"]["name"] == "json-check-scene"
-    assert data["character"]["name"] == "Character"
+    assert data["character"]["name"] == "Cozy Girl"
 
 
 # ---------------------------------------------------------------------------
@@ -418,3 +418,81 @@ def test_generate_mock_backend_produces_output(tmp_path):
     assert "Saved:" in result.output
     png_files = list(output_dir.glob("*.png"))
     assert len(png_files) >= 1
+
+
+# ---------------------------------------------------------------------------
+# check --backend flag
+# ---------------------------------------------------------------------------
+
+
+def test_check_backend_flag_mock(tmp_path):
+    """Check with --backend mock overrides config active_backend."""
+    config = _make_config(tmp_path, active_backend="comfyui")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["check", "--backend", "mock"])
+    assert result.exit_code == 0
+    assert "Mock backend: always available" in result.output
+    assert "Status: ready" in result.output
+
+
+def test_check_backend_flag_fal(tmp_path):
+    """Check with --backend fal uses fal backend."""
+    config = _make_config(tmp_path, active_backend="comfyui")
+    mock_fal = MockBackend(output_dir=tmp_path)
+    with (
+        patch("animeforge.config.load_config", return_value=config),
+        patch("animeforge.backend.fal_backend.FalBackend", return_value=mock_fal),
+    ):
+        result = runner.invoke(app, ["check", "--backend", "fal"])
+    assert result.exit_code == 0
+    assert "connected" in result.output
+    assert "ready" in result.output
+
+
+def test_check_backend_flag_comfyui(tmp_path):
+    """Check with --backend comfyui uses comfyui backend."""
+    config = _make_config(tmp_path, active_backend="mock")
+    mock_comfy = MockBackend(output_dir=tmp_path)
+    with (
+        patch("animeforge.config.load_config", return_value=config),
+        patch("animeforge.backend.comfyui.ComfyUIBackend", return_value=mock_comfy),
+    ):
+        result = runner.invoke(app, ["check", "--backend", "comfyui"])
+    assert result.exit_code == 0
+    assert "connected" in result.output
+    assert "ready" in result.output
+
+
+def test_check_backend_flag_defaults_to_config(tmp_path):
+    """Check without --backend uses config.active_backend."""
+    config = _make_config(tmp_path, active_backend="mock")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["check"])
+    assert result.exit_code == 0
+    assert "Mock backend: always available" in result.output
+
+
+# ---------------------------------------------------------------------------
+# create command: default character
+# ---------------------------------------------------------------------------
+
+
+def test_create_project_has_default_character(tmp_path):
+    """Create a project and verify it gets a default character with animations."""
+    import json
+
+    project_dir = tmp_path / "default-char-project"
+    config = _make_config(tmp_path)
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["create", "char-test", "--dir", str(project_dir)])
+    assert result.exit_code == 0
+    data = json.loads((project_dir / "project.json").read_text())
+    char = data["character"]
+    assert char["name"] == "Cozy Girl"
+    assert char["description"] == "anime girl studying at desk"
+    assert len(char["animations"]) == 6
+    assert len(char["transitions"]) == 10
+    anim_ids = {a["id"] for a in char["animations"]}
+    assert "idle" in anim_ids
+    assert "typing" in anim_ids
+    assert "reading" in anim_ids

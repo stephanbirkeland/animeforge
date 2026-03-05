@@ -12,7 +12,7 @@ from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label, Static
 
 from animeforge.config import load_config
-from animeforge.models import Project, Scene
+from animeforge.models import Project, Scene, create_default_character
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -183,6 +183,11 @@ class DashboardScreen(Screen[None]):
         proj = Project(
             name=project_name,
             scene=Scene(name="Main Scene"),
+            character=create_default_character(
+                name="Cozy Girl",
+                description="anime girl studying at desk",
+                zone_id="desk",
+            ),
             project_dir=project_dir,
         )
         proj.save()

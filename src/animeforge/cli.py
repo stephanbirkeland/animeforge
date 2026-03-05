@@ -24,7 +24,7 @@ def create(
 ) -> None:
     """Create a new AnimeForge project."""
     from animeforge.config import load_config  # noqa: PLC0415
-    from animeforge.models.character import Character  # noqa: PLC0415
+    from animeforge.models.character import create_default_character  # noqa: PLC0415
     from animeforge.models.project import Project  # noqa: PLC0415
     from animeforge.models.scene import Scene  # noqa: PLC0415
 
@@ -33,7 +33,11 @@ def create(
     project = Project(
         name=name,
         scene=Scene(name=f"{name}-scene"),
-        character=Character(name="Character", description="anime character"),
+        character=create_default_character(
+            name="Cozy Girl",
+            description="anime girl studying at desk",
+            zone_id="desk",
+        ),
         project_dir=project_dir,
     )
     save_path = project.save()
@@ -109,14 +113,19 @@ def generate(
 
 
 @app.command()
-def check() -> None:
+def check(
+    backend: Annotated[
+        str | None,
+        typer.Option("--backend", "-b", help="Backend: comfyui, fal, or mock"),
+    ] = None,
+) -> None:
     """Check backend connectivity and report status."""
     import asyncio  # noqa: PLC0415
 
     from animeforge.config import load_config  # noqa: PLC0415
 
     config = load_config()
-    backend_name = config.active_backend
+    backend_name = backend or config.active_backend
 
     async def _run() -> None:
         if backend_name == "fal":
