@@ -1,5 +1,7 @@
 """Tests for AnimeForge data models."""
 
+from __future__ import annotations
+
 import json
 import tempfile
 from pathlib import Path
@@ -22,6 +24,7 @@ from animeforge.models import (
     Scene,
     Zone,
 )
+from animeforge.models.character import StateTransition, create_default_character
 from animeforge.models.enums import (
     AnimationState,
     EffectType,
@@ -315,3 +318,78 @@ class TestCharacterValidation:
     def test_accepts_ip_adapter_weight_one(self):
         char = Character(name="C", description="d", ip_adapter_weight=1.0)
         assert char.ip_adapter_weight == 1.0
+
+
+# ---------------------------------------------------------------------------
+# create_default_character tests
+# ---------------------------------------------------------------------------
+
+
+class TestCreateDefaultCharacter:
+    """Tests for the create_default_character() factory function."""
+
+    def test_returns_character_with_correct_name_and_description(self):
+        char = create_default_character(
+            name="Cozy Girl",
+            description="anime girl studying at desk",
+            zone_id="desk",
+        )
+        assert isinstance(char, Character)
+        assert char.name == "Cozy Girl"
+        assert char.description == "anime girl studying at desk"
+
+    def test_creates_expected_animations(self):
+        char = create_default_character(
+            name="Test",
+            description="test character",
+            zone_id="main-zone",
+        )
+        assert len(char.animations) == 6
+        anim_ids = {a.id for a in char.animations}
+        assert anim_ids == {"idle", "typing", "reading", "drinking", "stretching", "looking_window"}
+        # Verify zone_id is propagated to all animations
+        for anim in char.animations:
+            assert anim.zone_id == "main-zone"
+        # Verify non-looping animations
+        non_looping = {a.id for a in char.animations if not a.loop}
+        assert non_looping == {"drinking", "stretching"}
+
+    def test_creates_state_transitions(self):
+        char = create_default_character(
+            name="Test",
+            description="test character",
+            zone_id="z",
+        )
+        assert len(char.transitions) == 10
+        # Check that auto-return transitions exist for non-looping animations
+        auto_transitions = [t for t in char.transitions if t.auto]
+        assert len(auto_transitions) == 2
+        auto_targets = {(t.from_state, t.to_state) for t in auto_transitions}
+        assert ("drinking", "idle") in auto_targets
+        assert ("stretching", "idle") in auto_targets
+        # Every transition should be a valid StateTransition
+        for t in char.transitions:
+            assert isinstance(t, StateTransition)
+            assert t.duration_ms > 0
+
+
+# ---------------------------------------------------------------------------
+# Project.load error path tests
+# ---------------------------------------------------------------------------
+
+
+class TestProjectLoadErrorPaths:
+    """Tests for Project.load edge cases and error paths."""
+
+    def test_load_nonexistent_directory(self):
+        """Loading from a directory that does not exist raises ProjectLoadError."""
+        with pytest.raises(ProjectLoadError, match="project file not found"):
+            Project.load(Path("/tmp/absolutely-does-not-exist-animeforge"))
+
+    def test_load_empty_file_content(self):
+        """Loading a file with empty content raises ProjectLoadError (invalid JSON)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            empty_file = Path(tmpdir) / "project.json"
+            empty_file.write_text("", encoding="utf-8")
+            with pytest.raises(ProjectLoadError, match="project file contains invalid JSON"):
+                Project.load(empty_file)

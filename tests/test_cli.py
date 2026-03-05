@@ -365,3 +365,56 @@ def test_unknown_subcommand():
     """An unknown subcommand shows an error."""
     result = runner.invoke(app, ["nonexistent-command"])
     assert result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# CLI error path coverage
+# ---------------------------------------------------------------------------
+
+
+def test_export_invalid_animated_format(tmp_path):
+    """Export with an invalid --animated-format value exits with error."""
+    project_dir = _save_sample_project(tmp_path / "anim-fmt-project")
+    result = runner.invoke(
+        app,
+        ["export", str(project_dir), "--animated-format", "mp4"],
+    )
+    assert result.exit_code == 1
+    assert "must be gif or apng" in result.output
+
+
+def test_check_mock_backend_output(tmp_path):
+    """Check command with mock backend outputs expected status messages."""
+    config = _make_config(tmp_path, active_backend="mock")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["check"])
+    assert result.exit_code == 0
+    assert "Mock backend: always available" in result.output
+    assert "Status: ready" in result.output
+
+
+def test_generate_mock_backend_produces_output(tmp_path):
+    """Generate with --backend mock creates a PNG file on disk."""
+    output_dir = tmp_path / "mock_gen"
+    config = _make_config(tmp_path, active_backend="mock")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                "lo-fi anime study room",
+                "--backend",
+                "mock",
+                "--output",
+                str(output_dir),
+                "--width",
+                "32",
+                "--height",
+                "32",
+            ],
+        )
+    assert result.exit_code == 0
+    assert "Generating (mock)" in result.output
+    assert "Saved:" in result.output
+    png_files = list(output_dir.glob("*.png"))
+    assert len(png_files) >= 1
