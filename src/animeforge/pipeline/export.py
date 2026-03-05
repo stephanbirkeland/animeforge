@@ -158,7 +158,6 @@ def validate_export(
     )
 
 
-
 def export_animated_image(
     sprite_sheet_path: Path,
     frame_count: int,
@@ -207,9 +206,7 @@ def export_animated_image(
     frame_w = sheet_w // effective_count
 
     if frame_w <= 0:
-        raise ExportError(
-            f"Invalid frame width ({frame_w}) for sprite sheet: {sprite_sheet_path}"
-        )
+        raise ExportError(f"Invalid frame width ({frame_w}) for sprite sheet: {sprite_sheet_path}")
 
     # Split sprite sheet into individual frames.
     frames: list[Image.Image] = []

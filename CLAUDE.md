@@ -11,7 +11,7 @@ A **lo-fi Girl-style interactive anime scene engine**. Design animated anime sce
 - **Python 3.11+** with **uv** (not pip, not poetry — `uv sync`, `uv run`)
 - **Textual** (TUI), **Typer** (CLI), **Pydantic v2** (models + config)
 - **AI backends:** ComfyUI (local GPU), fal.ai (cloud API), Mock (testing)
-- **Pillow** for image processing, **httpx** (async HTTP), **websockets**
+- **Pillow** for image processing, **httpx** (async HTTP), **websockets**, **jsonschema** (scene validation)
 - **Jinja2** templates + vanilla JS Canvas 2D runtime for web export
 - **Config:** TOML at `~/.animeforge/config.toml` via `pydantic-settings`
 
@@ -42,7 +42,7 @@ src/animeforge/
 │   ├── project.py       # Project (root aggregate, has save/load)
 │   ├── pose.py          # PoseFrame, PoseKeypoint
 │   ├── enums.py         # TimeOfDay, Weather, Season, EffectType
-│   └── export.py        # ExportConfig
+│   └── export.py        # ExportConfig (incl. animated_format for GIF/APNG)
 ├── backend/             # Pluggable AI backends
 │   ├── base.py          # GenerationBackend Protocol (5 async methods)
 │   ├── comfyui.py       # Local GPU via ComfyUI HTTP+WS API
@@ -55,7 +55,10 @@ src/animeforge/
 │   ├── assembly.py      # assemble_sprite_sheet() — frame → sheet
 │   ├── consistency.py   # IP-Adapter style transfer
 │   ├── poses.py         # OpenPose interpolation
-│   └── export.py        # Web package: HTML/CSS/JS + assets
+│   ├── validation.py    # JSON schema validation for scene.json files
+│   └── export.py        # Web package: HTML/CSS/JS + assets (incl. GIF/APNG export)
+├── schemas/             # JSON schema files for validation
+│   └── scene.schema.json
 ├── screens/             # Textual screens (dashboard, editor, generation, settings, etc.)
 ├── widgets/             # Reusable Textual widgets
 ├── runtime/             # JavaScript Canvas 2D engine (~15KB)
@@ -84,9 +87,10 @@ Loads from: init defaults → env vars (`ANIMEFORGE_*`) → TOML file.
 ### Config Changes = Two Files
 Any config field change must update BOTH `config.py` (the settings class) AND `screens/settings_screen.py` (the TUI form). Forgetting the UI side is a common agent mistake.
 
-## Current Metrics (as of 2026-02-27)
-- **87 tests**, 28% coverage, targeting 40%+
-- **7185 source lines** across 42 Python files
+## Current Metrics (as of 2026-03-05)
+- **217 tests**, 35% coverage
+- **7375 source lines** across 44 Python files
+- **0 open issues**, 33 closed issues
 - **0 TODO/FIXME/HACK** markers
 - Lint: `ruff check` clean | Types: `mypy --strict` clean | Tests: all passing
 - CI: GitHub Actions on push/PR — ruff + mypy + pytest on 3.11/3.12/3.13
@@ -223,25 +227,17 @@ Product Owner (scheduled)
 
 ---
 
-## Open Issues
+## Issues
 
-**Do NOT duplicate these.** Check before proposing new ones.
+All 33 issues have been closed. There are currently **0 open issues** and **0 open PRs**.
 
-### High Priority
-- #38 — Unit tests for scene_gen.py and character_gen.py (0% coverage, complex branching)
-- #33 — Pydantic validators on Scene, AnimationDef, PoseFrame (width=0 crashes downstream)
-- #19 — Field constraints on ExportConfig.image_quality and ComfyUISettings.port
-- #5 — Increase test coverage from 28% to 40%
+**Do NOT duplicate closed issues.** Check `gh issue list --state closed` before proposing new ones.
 
-### Medium Priority
-- #40 — Wrap Image.open() in export.py with specific exception handling
-- #39 — Replace bare except/pass in TUI widgets with specific exceptions
-- #35 — Tests for _generate_preview() and TemplateNotFound fallback
-- #34 — Wrap Image.open() in assembly.py with specific exception handling
-- #21 — Integration tests for CLI commands using CliRunner
-- #14 — Fix PLC0415 (import-outside-top-level) violations
-
-### Feature Work
-- #11 — Animated GIF/APNG export option
-- #8 — types-Pillow stub package for mypy
-- #7 — JSON schema validation for scene.json
+### Completed Feature Work (highlights)
+- GIF/APNG animated export (`models/export.py` animated_format, `pipeline/export.py`)
+- JSON schema validation for scene.json (`schemas/scene.schema.json`, `pipeline/validation.py`)
+- fal.ai cloud backend (`backend/fal_backend.py`)
+- types-Pillow + types-jsonschema stubs for mypy
+- Pydantic validators and field constraints across models
+- Exception handling hardened in pipeline and TUI widgets
+- CLI integration tests, pipeline unit tests, 217 tests total at 35% coverage

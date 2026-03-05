@@ -12,10 +12,12 @@ Design animated anime scenes through a terminal UI, generate assets with AI, and
 ## Features
 
 - **Terminal UI** — Compose scenes, characters, and animations through an interactive TUI built with Textual
-- **AI Generation** — Generate character sprites and backgrounds via ComfyUI with OpenPose control
+- **3 AI Backends** — ComfyUI (local GPU), fal.ai (cloud API), or Mock (testing/development). Select via `--backend` flag or TUI dropdown
 - **Procedural Effects** — Rain, snow, falling leaves, and more — generated as sprite strips with Pillow
 - **Character System** — Multi-animation characters with pose sequences and configurable transitions
 - **Web Export** — Self-contained HTML/JS/CSS packages with a ~15KB Canvas 2D runtime
+- **Animated Export** — Generate GIF or APNG from scenes via `--animated-format`
+- **JSON Schema Validation** — Exported `scene.json` is validated against a JSON Schema on export
 - **Scene Layering** — Parallax backgrounds with time-of-day, weather, and season variants
 
 ## Quick Start
@@ -30,11 +32,22 @@ animeforge create my-scene
 # Launch the interactive TUI
 animeforge
 
-# Generate assets (requires ComfyUI)
-animeforge generate "cozy anime girl studying at desk"
+# Generate assets (select backend with --backend)
+animeforge generate "cozy anime girl studying at desk" --backend fal
+animeforge generate "cozy anime girl studying at desk" --backend comfyui
+animeforge generate "cozy anime girl studying at desk" --backend mock
+
+# Check backend connectivity
+animeforge check
 
 # Export to web
 animeforge export ./my-scene --output ./dist
+
+# Export as animated GIF or APNG
+animeforge export ./my-scene --output ./dist --animated-format gif
+
+# Validate export without writing files
+animeforge export ./my-scene --dry-run
 
 # Preview locally
 animeforge serve ./dist
@@ -46,18 +59,32 @@ animeforge serve ./dist
 |---------|-------------|
 | `animeforge` | Launch the interactive TUI (default) |
 | `animeforge create <name>` | Create a new project |
-| `animeforge generate <prompt>` | Generate an image via ComfyUI |
+| `animeforge generate <prompt>` | Generate an image via the active backend |
+| `animeforge check` | Check backend connectivity and report status |
 | `animeforge export <project>` | Export project as a web package |
+| `animeforge preview [prompt]` | Start a live preview server for mock generation |
 | `animeforge serve [dir]` | Serve exported package locally |
 | `animeforge tui` | Launch the TUI explicitly |
 | `animeforge --version` | Show version |
+
+### Key Options
+
+| Option | Command | Description |
+|--------|---------|-------------|
+| `--backend`, `-b` | `generate` | Backend to use: `comfyui`, `fal`, or `mock` |
+| `--output`, `-o` | `generate`, `export` | Output directory |
+| `--width`, `-W` / `--height`, `-H` | `generate` | Image dimensions (default: 1024x1024) |
+| `--steps`, `-s` | `generate` | Sampling steps (default: 30) |
+| `--negative`, `-n` | `generate` | Negative prompt |
+| `--animated-format` | `export` | Generate animated image: `gif` or `apng` |
+| `--dry-run` | `export` | Validate export without writing files |
 
 ## Architecture
 
 ```
 src/animeforge/
 ├── models/      Pydantic data models (character, scene, project, poses)
-├── backend/     AI backends — ComfyUI (production) + Mock (development)
+├── backend/     AI backends — ComfyUI (local GPU), fal.ai (cloud), Mock (testing)
 ├── pipeline/    Orchestration — generation, assembly, effects, export
 ├── screens/     Textual TUI screens (dashboard, editor, preview, etc.)
 ├── widgets/     Reusable TUI components
@@ -67,6 +94,37 @@ src/animeforge/
 ```
 
 **Data flow:** Project model → Pipeline orchestration → AI backend → Asset assembly → Web export
+
+## Backends
+
+AnimeForge supports three pluggable backends, all implementing the same `GenerationBackend` protocol:
+
+| Backend | Use Case | Requirements |
+|---------|----------|--------------|
+| **ComfyUI** | Local GPU generation | ComfyUI server running (default: `http://127.0.0.1:8188`) |
+| **fal.ai** | Cloud generation | `FAL_KEY` env var or `api_key` in `~/.animeforge/config.toml` |
+| **Mock** | Testing/development | None (always available, generates gradient placeholders) |
+
+### Configuring fal.ai
+
+Set your API key via environment variable or config file:
+
+```bash
+# Option 1: Environment variable
+export FAL_KEY="your-api-key"
+
+# Option 2: Config file (~/.animeforge/config.toml)
+[fal]
+api_key = "your-api-key"
+```
+
+The active backend can be set globally in `config.toml` (`active_backend = "fal"`) or per-command with `--backend fal`. The TUI settings screen also has a backend dropdown.
+
+### Verifying Connectivity
+
+```bash
+animeforge check   # Reports status of the active backend
+```
 
 ## Development
 
@@ -123,7 +181,7 @@ All workflows are time-gated to after-hours (17:00–08:00 CET) to conserve subs
 | CLI | Typer |
 | Models | Pydantic v2 |
 | Image Processing | Pillow |
-| AI Backend | ComfyUI |
+| AI Backends | ComfyUI, fal.ai, Mock |
 | Web Runtime | Canvas 2D (vanilla JS) |
 | Templating | Jinja2 |
 | Package Manager | uv |
