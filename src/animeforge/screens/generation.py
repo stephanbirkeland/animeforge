@@ -12,6 +12,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
     Button,
+    Checkbox,
     Footer,
     Header,
     Label,
@@ -30,6 +31,7 @@ from animeforge.pipeline.character_gen import generate_character_animations
 from animeforge.pipeline.effect_gen import (
     generate_leaf_sprites,
     generate_rain_sprites,
+    generate_sakura_sprites,
     generate_snow_sprites,
 )
 from animeforge.pipeline.scene_gen import generate_scene_backgrounds
@@ -101,6 +103,15 @@ class GenerationScreen(Screen[None]):
             with Horizontal(classes="toolbar"):
                 yield Button("<- Back", id="btn-back", classes="back-btn")
                 yield Static("Asset Generation", classes="screen-title")
+
+            # ── Phase selection ──────────────────────────────
+            with Vertical(classes="card"):
+                yield Static("Phases to Generate", classes="card-title")
+                with Horizontal(classes="row"):
+                    yield Checkbox("Backgrounds", value=True, id="phase-bg")
+                    yield Checkbox("Character sprites", value=True, id="phase-char")
+                    yield Checkbox("Effects", value=True, id="phase-fx")
+                    yield Checkbox("All variants", value=True, id="phase-variants")
 
             # ── Task progress panel ──────────────────────────
             with Vertical(classes="card", id="task-panel"):
@@ -214,6 +225,12 @@ class GenerationScreen(Screen[None]):
             await backend.connect()
             backend_available = True
 
+        # Read phase checkboxes
+        do_bg = self.query_one("#phase-bg", Checkbox).value
+        do_char = self.query_one("#phase-char", Checkbox).value
+        do_fx = self.query_one("#phase-fx", Checkbox).value
+        do_variants = self.query_one("#phase-variants", Checkbox).value
+
         completed_phases = 0
         total_phases = 6
 
@@ -243,33 +260,38 @@ class GenerationScreen(Screen[None]):
             task_bg = self.query_one("#task-bg", _TaskRow)
             if _cancelled():
                 return
-            if backend_available:
-                log.write("[bold cyan]Starting:[/bold cyan] Background layers")
-                task_bg.update_progress(10)
-                try:
-                    bg_results = await generate_scene_backgrounds(
-                        proj.scene,
-                        backend,
-                        config,
-                        output_dir=output_dir / "backgrounds",
-                        progress_callback=_make_progress_cb(task_bg),
-                    )
-                    # Update project model with generated paths
-                    if proj.scene.layers:
-                        base_layer = min(proj.scene.layers, key=lambda ly: ly.z_index)
-                        base_layer.time_variants.update(bg_results)
-                    elif bg_results:
-                        layer = Layer(id="bg-main", z_index=0, time_variants=bg_results)
-                        proj.scene.layers.append(layer)
-                    log.write(
-                        f"[bold green]Completed:[/bold green] "
-                        f"Background layers ({len(bg_results)} variants)"
-                    )
-                except Exception as exc:
-                    log.write(f"[bold red]Error:[/bold red] Background generation failed: {exc}")
-                    logger.exception("Background generation failed")
+            if do_bg:
+                if backend_available:
+                    log.write("[bold cyan]Starting:[/bold cyan] Background layers")
+                    task_bg.update_progress(10)
+                    try:
+                        bg_results = await generate_scene_backgrounds(
+                            proj.scene,
+                            backend,
+                            config,
+                            output_dir=output_dir / "backgrounds",
+                            progress_callback=_make_progress_cb(task_bg),
+                        )
+                        # Update project model with generated paths
+                        if proj.scene.layers:
+                            base_layer = min(proj.scene.layers, key=lambda ly: ly.z_index)
+                            base_layer.time_variants.update(bg_results)
+                        elif bg_results:
+                            layer = Layer(id="bg-main", z_index=0, time_variants=bg_results)
+                            proj.scene.layers.append(layer)
+                        log.write(
+                            f"[bold green]Completed:[/bold green] "
+                            f"Background layers ({len(bg_results)} variants)"
+                        )
+                    except Exception as exc:
+                        log.write(
+                            f"[bold red]Error:[/bold red] Background generation failed: {exc}"
+                        )
+                        logger.exception("Background generation failed")
+                else:
+                    log.write("[dim]Skipped:[/dim] Background layers (no backend)")
             else:
-                log.write("[dim]Skipped:[/dim] Background layers (no backend)")
+                log.write("[dim]Skipped:[/dim] Background layers (unchecked)")
             task_bg.update_progress(100)
             completed_phases += 1
             _update_overall()
@@ -278,113 +300,141 @@ class GenerationScreen(Screen[None]):
             task_char = self.query_one("#task-char", _TaskRow)
             if _cancelled():
                 return
-            if backend_available and proj.character:
-                log.write("[bold cyan]Starting:[/bold cyan] Character sprites")
-                task_char.update_progress(10)
-                try:
-                    char_results = await generate_character_animations(
-                        proj.character,
-                        proj.scene,
-                        backend,
-                        config,
-                        output_dir=output_dir / "characters",
-                        progress_callback=_make_progress_cb(task_char),
-                    )
-                    # Update animation sprite_sheet paths on project model
-                    for anim in proj.character.animations:
-                        if anim.id in char_results:
-                            anim.sprite_sheet = char_results[anim.id]
-                    log.write(
-                        f"[bold green]Completed:[/bold green] "
-                        f"Character sprites ({len(char_results)} animations)"
-                    )
-                except Exception as exc:
-                    log.write(f"[bold red]Error:[/bold red] Character generation failed: {exc}")
-                    logger.exception("Character generation failed")
+            if do_char:
+                if backend_available and proj.character:
+                    log.write("[bold cyan]Starting:[/bold cyan] Character sprites")
+                    task_char.update_progress(10)
+                    try:
+                        char_results = await generate_character_animations(
+                            proj.character,
+                            proj.scene,
+                            backend,
+                            config,
+                            output_dir=output_dir / "characters",
+                            progress_callback=_make_progress_cb(task_char),
+                        )
+                        # Update animation sprite_sheet paths on project model
+                        for anim in proj.character.animations:
+                            if anim.id in char_results:
+                                anim.sprite_sheet = char_results[anim.id]
+                        log.write(
+                            f"[bold green]Completed:[/bold green] "
+                            f"Character sprites ({len(char_results)} animations)"
+                        )
+                    except Exception as exc:
+                        log.write(f"[bold red]Error:[/bold red] Character generation failed: {exc}")
+                        logger.exception("Character generation failed")
+                else:
+                    reason = "no backend" if not backend_available else "no character defined"
+                    log.write(f"[dim]Skipped:[/dim] Character sprites ({reason})")
             else:
-                reason = "no backend" if not backend_available else "no character defined"
-                log.write(f"[dim]Skipped:[/dim] Character sprites ({reason})")
+                log.write("[dim]Skipped:[/dim] Character sprites (unchecked)")
             task_char.update_progress(100)
             completed_phases += 1
             _update_overall()
 
             # ── Phase 3: Animation frames (covered by character gen above) ──
             task_anim = self.query_one("#task-anim", _TaskRow)
+            if do_char:
+                log.write(
+                    "[bold green]Completed:[/bold green] "
+                    "Animation frames (included in character sprites)"
+                )
+            else:
+                log.write("[dim]Skipped:[/dim] Animation frames (unchecked)")
             task_anim.update_progress(100)
             completed_phases += 1
             _update_overall()
-            log.write(
-                "[bold green]Completed:[/bold green] "
-                "Animation frames (included in character sprites)"
-            )
 
             # ── Phase 4: Effects / particles ──────────────
             task_fx = self.query_one("#task-fx", _TaskRow)
             if _cancelled():
                 return
-            log.write("[bold cyan]Starting:[/bold cyan] Effects / particles")
-            task_fx.update_progress(10)
-            fx_dir = output_dir / "effects"
-            try:
-                rain_path = generate_rain_sprites(fx_dir)
-                proj.scene.effects.append(
-                    EffectDef(
-                        id="rain",
-                        type=EffectType.PARTICLE,
-                        weather_trigger=Weather.RAIN,
-                        sprite_sheet=rain_path,
+            if do_fx:
+                log.write("[bold cyan]Starting:[/bold cyan] Effects / particles")
+                task_fx.update_progress(10)
+                fx_dir = output_dir / "effects"
+                try:
+                    rain_path = generate_rain_sprites(fx_dir)
+                    proj.scene.effects.append(
+                        EffectDef(
+                            id="rain",
+                            type=EffectType.PARTICLE,
+                            weather_trigger=Weather.RAIN,
+                            sprite_sheet=rain_path,
+                        )
                     )
-                )
-                task_fx.update_progress(40)
+                    task_fx.update_progress(30)
 
-                snow_path = generate_snow_sprites(fx_dir)
-                proj.scene.effects.append(
-                    EffectDef(
-                        id="snow",
-                        type=EffectType.PARTICLE,
-                        weather_trigger=Weather.SNOW,
-                        sprite_sheet=snow_path,
+                    snow_path = generate_snow_sprites(fx_dir)
+                    proj.scene.effects.append(
+                        EffectDef(
+                            id="snow",
+                            type=EffectType.PARTICLE,
+                            weather_trigger=Weather.SNOW,
+                            sprite_sheet=snow_path,
+                        )
                     )
-                )
-                task_fx.update_progress(70)
+                    task_fx.update_progress(55)
 
-                leaf_path = generate_leaf_sprites(fx_dir)
-                proj.scene.effects.append(
-                    EffectDef(
-                        id="leaves",
-                        type=EffectType.PARTICLE,
-                        season_trigger=Season.FALL,
-                        sprite_sheet=leaf_path,
+                    leaf_path = generate_leaf_sprites(fx_dir)
+                    proj.scene.effects.append(
+                        EffectDef(
+                            id="leaves",
+                            type=EffectType.PARTICLE,
+                            season_trigger=Season.FALL,
+                            sprite_sheet=leaf_path,
+                        )
                     )
-                )
-                log.write(
-                    f"[bold green]Completed:[/bold green] Effects — rain, snow, leaves -> {fx_dir}"
-                )
-            except Exception as exc:
-                log.write(f"[bold red]Error:[/bold red] Effect generation failed: {exc}")
-                logger.exception("Effect generation failed")
+                    task_fx.update_progress(80)
+
+                    sakura_path = generate_sakura_sprites(fx_dir)
+                    proj.scene.effects.append(
+                        EffectDef(
+                            id="sakura",
+                            type=EffectType.PARTICLE,
+                            season_trigger=Season.SPRING,
+                            sprite_sheet=sakura_path,
+                        )
+                    )
+                    log.write(
+                        f"[bold green]Completed:[/bold green] "
+                        f"Effects — rain, snow, leaves, sakura -> {fx_dir}"
+                    )
+                except Exception as exc:
+                    log.write(f"[bold red]Error:[/bold red] Effect generation failed: {exc}")
+                    logger.exception("Effect generation failed")
+            else:
+                log.write("[dim]Skipped:[/dim] Effects / particles (unchecked)")
             task_fx.update_progress(100)
             completed_phases += 1
             _update_overall()
 
             # ── Phase 5: Time-of-day variants (done in bg phase) ──
             task_tod = self.query_one("#task-tod", _TaskRow)
+            if do_variants:
+                log.write(
+                    "[bold green]Completed:[/bold green] "
+                    "Time-of-day variants (included in background phase)"
+                )
+            else:
+                log.write("[dim]Skipped:[/dim] Time-of-day variants (unchecked)")
             task_tod.update_progress(100)
             completed_phases += 1
             _update_overall()
-            log.write(
-                "[bold green]Completed:[/bold green] "
-                "Time-of-day variants (included in background phase)"
-            )
 
             # ── Phase 6: Weather variants (placeholder) ───
             task_weather = self.query_one("#task-weather", _TaskRow)
+            if do_variants:
+                log.write(
+                    "[bold green]Completed:[/bold green] "
+                    "Weather variants (triggered by effect sprites)"
+                )
+            else:
+                log.write("[dim]Skipped:[/dim] Weather variants (unchecked)")
             task_weather.update_progress(100)
             completed_phases += 1
             _update_overall()
-            log.write(
-                "[bold green]Completed:[/bold green] Weather variants (triggered by effect sprites)"
-            )
 
         finally:
             # Always disconnect and clean up

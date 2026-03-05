@@ -116,7 +116,7 @@ class _SceneCanvas(Static):
                     if 0 < lx < canvas_w - 1:
                         grid[label_y][lx] = ch
 
-        # Weather overlay
+        # Weather overlay — use a seeded RNG per scene for stable positions.
         weather_indicator = {
             Weather.RAIN: "~",
             Weather.SNOW: "*",
@@ -126,9 +126,13 @@ class _SceneCanvas(Static):
         }
         overlay_ch = weather_indicator.get(self._weather, "")
         if overlay_ch:
+            # Seed from scene name + weather + season for stable, deterministic positions.
+            seed = hash((scene.name, self._weather.value, self._season.value))
+            # Seeded RNG for reproducible overlay positions — not cryptographic use.
+            rng = random.Random(seed)  # noqa: S311
             for _ in range(15):
-                rx = random.randint(1, canvas_w - 2)  # noqa: S311
-                ry = random.randint(1, canvas_h - 2)  # noqa: S311
+                rx = rng.randint(1, canvas_w - 2)
+                ry = rng.randint(1, canvas_h - 2)
                 if grid[ry][rx] == " ":
                     grid[ry][rx] = overlay_ch
 
