@@ -2,10 +2,8 @@ name: Auto-Approve Easy Wins
 
 on:
   schedule:
-    # Run at 17:15 CET (16:15 UTC) on weekdays — 10 min after queue processor
-    - cron: "15 16 * * 1-5"
-    # Run at 10:00 CET (09:00 UTC) on weekends for weekend batch
-    - cron: "0 9 * * 0,6"
+    # Run at 17:30 UTC (18:30 CET) daily — 25 min after product owner (gives plans time to post)
+    - cron: "30 17 * * *"
   workflow_dispatch:
 
 permissions:

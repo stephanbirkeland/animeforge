@@ -134,7 +134,7 @@ Product Owner (scheduled)
 ## Agent-Specific Instructions
 
 ### Product Owner Agent
-**Trigger:** Scheduled (weekdays 17:30 CET, Saturday 10:30 CET) or manual dispatch
+**Trigger:** Scheduled (daily 18:05 CET) or manual dispatch
 **Model:** claude-sonnet-4-6 | **Max turns:** 15 | **Has:** read-only access to codebase
 
 **Your job:** Identify 1-3 concrete improvements. You receive project metrics (coverage, test count, TODO count, ruff extended analysis, mypy status, recent commits, existing issue titles).

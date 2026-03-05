@@ -2,10 +2,8 @@ name: Product Owner
 
 on:
   schedule:
-    # Run at 16:30 UTC (17:30 CET) weekdays — after work hours, before dev kicks off
-    - cron: "30 16 * * 1-5"
-    # Run at 09:30 UTC (10:30 CET) on Saturdays — weekend planning
-    - cron: "30 9 * * 6"
+    # Run at 17:05 UTC (18:05 CET) daily — after work hours, after queue processor
+    - cron: "5 17 * * *"
   workflow_dispatch:
     inputs:
       focus_area:
