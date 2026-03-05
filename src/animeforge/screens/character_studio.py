@@ -21,6 +21,7 @@ from textual.widgets import (
 
 from animeforge.models import AnimationDef, Character, StateTransition
 from animeforge.models.enums import AnimationState
+from animeforge.widgets import StateGraph
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -160,6 +161,9 @@ class CharacterStudioScreen(Screen[None]):
                     yield Button("Save Transition", id="btn-save-trans", classes="success")
                     yield Button("Cancel", id="btn-cancel-trans")
 
+            # ── State Graph Visualization ─────────────────
+            yield StateGraph(id="state-graph")
+
             with Horizontal(classes="toolbar"):
                 yield Button("Save Character", id="btn-save-char", classes="success")
 
@@ -223,6 +227,9 @@ class CharacterStudioScreen(Screen[None]):
             f"Loaded: {char.name} ({len(char.animations)} animations, "
             f"{len(char.transitions)} transitions)"
         )
+
+        # Update state graph visualization
+        self._refresh_state_graph(char.animations, char.transitions)
 
     # ── Button handlers ──────────────────────────────────────
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -298,6 +305,7 @@ class CharacterStudioScreen(Screen[None]):
         table.add_row(anim_id, anim_name, zone_id, fps, frames, pose_seq, "Yes" if loop else "No")
         self._set_status(f"Animation '{anim_name}' saved.")
         self._clear_anim_fields()
+        self._refresh_state_graph()
 
     def _clear_anim_fields(self) -> None:
         self.query_one("#anim-id", Input).value = ""
@@ -315,6 +323,7 @@ class CharacterStudioScreen(Screen[None]):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
             table.remove_row(row_key)
             self._set_status("Animation deleted.")
+            self._refresh_state_graph()
         except Exception:  # noqa: BLE001
             self._set_status("Select an animation to delete.")
 
@@ -333,6 +342,7 @@ class CharacterStudioScreen(Screen[None]):
         table.add_row(from_state, to_state, duration, "Yes" if auto else "No")
         self._set_status(f"Transition {from_state} -> {to_state} saved.")
         self._clear_trans_fields()
+        self._refresh_state_graph()
 
     def _delete_selected_transition(self) -> None:
         table = self.query_one("#transition-table", DataTable)
@@ -342,6 +352,7 @@ class CharacterStudioScreen(Screen[None]):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
             table.remove_row(row_key)
             self._set_status("Transition deleted.")
+            self._refresh_state_graph()
         except Exception:  # noqa: BLE001
             self._set_status("Select a transition to delete.")
 
@@ -454,6 +465,64 @@ class CharacterStudioScreen(Screen[None]):
                 self._set_status(f"Error saving: {exc}")
         else:
             self._set_status("No project loaded. Create a project from the Dashboard first.")
+
+    def _refresh_state_graph(
+        self,
+        animations: list[AnimationDef] | None = None,
+        transitions: list[StateTransition] | None = None,
+    ) -> None:
+        """Rebuild the state graph from current table data or provided lists."""
+        if animations is None or transitions is None:
+            animations, transitions = self._collect_animations_and_transitions()
+        graph = self.query_one("#state-graph", StateGraph)
+        graph.set_data(animations, transitions)
+
+    def _collect_animations_and_transitions(
+        self,
+    ) -> tuple[list[AnimationDef], list[StateTransition]]:
+        """Read animation and transition data from the UI tables."""
+        animations: list[AnimationDef] = []
+        anim_table = self.query_one("#anim-table", DataTable)
+        for row_key in anim_table.rows:
+            cells = anim_table.get_row(row_key)
+            try:
+                fps = int(cells[3])
+            except (ValueError, IndexError):
+                fps = 12
+            try:
+                frame_count = int(cells[4])
+            except (ValueError, IndexError):
+                frame_count = 8
+            animations.append(
+                AnimationDef(
+                    id=str(cells[0]),
+                    name=str(cells[1]),
+                    zone_id=str(cells[2]),
+                    fps=fps,
+                    frame_count=frame_count,
+                    pose_sequence=str(cells[5]) if len(cells) > 5 else "idle",
+                    loop=str(cells[6]).lower() == "yes" if len(cells) > 6 else True,
+                )
+            )
+
+        transitions: list[StateTransition] = []
+        trans_table = self.query_one("#transition-table", DataTable)
+        for row_key in trans_table.rows:
+            cells = trans_table.get_row(row_key)
+            try:
+                duration_ms = int(cells[2])
+            except (ValueError, IndexError):
+                duration_ms = 500
+            transitions.append(
+                StateTransition(
+                    from_state=str(cells[0]),
+                    to_state=str(cells[1]),
+                    duration_ms=duration_ms,
+                    auto=str(cells[3]).lower() == "yes" if len(cells) > 3 else False,
+                )
+            )
+
+        return animations, transitions
 
     def _set_status(self, text: str) -> None:
         label = self.query_one("#char-status", Label)

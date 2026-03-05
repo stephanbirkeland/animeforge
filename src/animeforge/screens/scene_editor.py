@@ -23,6 +23,7 @@ from textual.widgets._data_table import CellDoesNotExist
 
 from animeforge.models import Layer, Rect, Scene, Zone
 from animeforge.models.enums import Season, TimeOfDay, Weather
+from animeforge.widgets import ZoneEditor
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -153,6 +154,9 @@ class SceneEditorScreen(Screen[None]):
                     yield Button("Save Zone", id="btn-save-zone", classes="success")
                     yield Button("Cancel", id="btn-cancel-zone")
 
+            # ── Zone Editor Widget (alternative view) ─────
+            yield ZoneEditor(id="zone-editor")
+
             with Horizontal(classes="toolbar"):
                 yield Button("Save Scene", id="btn-save-scene", classes="success")
 
@@ -198,6 +202,10 @@ class SceneEditorScreen(Screen[None]):
         self.query_one("#scene-time", Select).value = scene.default_time
         self.query_one("#scene-weather", Select).value = scene.default_weather
         self.query_one("#scene-season", Select).value = scene.default_season
+
+        # Populate the ZoneEditor widget with zone data
+        zone_editor = self.query_one("#zone-editor", ZoneEditor)
+        zone_editor.set_zones(scene.zones)
 
         self._set_status(f"Loaded scene: {scene.name} ({len(scene.zones)} zones)")
 
@@ -287,6 +295,7 @@ class SceneEditorScreen(Screen[None]):
         table.add_row(zone_id, zone_name, x, y, w, h, z, anims, "Yes" if interactive else "No")
         self._set_status(f"Zone '{zone_name}' saved.")
         self._clear_zone_fields()
+        self._sync_zone_editor_from_table()
 
     def _clear_zone_fields(self) -> None:
         self.query_one("#zone-id", Input).value = ""
@@ -308,8 +317,62 @@ class SceneEditorScreen(Screen[None]):
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
             table.remove_row(row_key)
             self._set_status("Zone deleted.")
+            self._sync_zone_editor_from_table()
         except CellDoesNotExist:
             self._set_status("Select a zone to delete.")
+
+    # ── ZoneEditor sync ─────────────────────────────────────
+    def on_zone_editor_changed(self, event: ZoneEditor.Changed) -> None:
+        """Sync zones from ZoneEditor widget back to the main zone table."""
+        table = self.query_one("#zone-table", DataTable)
+        table.clear()
+        for zone in event.zones:
+            table.add_row(
+                zone.id,
+                zone.name,
+                str(zone.bounds.x),
+                str(zone.bounds.y),
+                str(zone.bounds.width),
+                str(zone.bounds.height),
+                str(zone.z_index),
+                ", ".join(zone.character_animations),
+                "Yes" if zone.interactive else "No",
+            )
+        self._set_status(f"Zones updated via Zone Editor ({len(event.zones)} zones)")
+
+    def _sync_zone_editor_from_table(self) -> None:
+        """Sync zones from the main DataTable to the ZoneEditor widget."""
+        zones: list[Zone] = []
+        table = self.query_one("#zone-table", DataTable)
+        for row_key in table.rows:
+            cells = table.get_row(row_key)
+            try:
+                bounds = Rect(
+                    x=float(cells[2]),
+                    y=float(cells[3]),
+                    width=float(cells[4]),
+                    height=float(cells[5]),
+                )
+                z_index = int(cells[6])
+            except (ValueError, IndexError):
+                continue
+            anims_raw = str(cells[7]).strip() if len(cells) > 7 else ""
+            character_animations = (
+                [a.strip() for a in anims_raw.split(",") if a.strip()] if anims_raw else []
+            )
+            interactive = str(cells[8]).lower() == "yes" if len(cells) > 8 else True
+            zones.append(
+                Zone(
+                    id=str(cells[0]),
+                    name=str(cells[1]),
+                    bounds=bounds,
+                    z_index=z_index,
+                    character_animations=character_animations,
+                    interactive=interactive,
+                )
+            )
+        zone_editor = self.query_one("#zone-editor", ZoneEditor)
+        zone_editor.set_zones(zones)
 
     # ── Background ───────────────────────────────────────────
     def _import_background(self) -> None:

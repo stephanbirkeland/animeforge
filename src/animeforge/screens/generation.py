@@ -16,7 +16,6 @@ from textual.widgets import (
     Footer,
     Header,
     Label,
-    ProgressBar,
     RichLog,
     Static,
 )
@@ -35,6 +34,7 @@ from animeforge.pipeline.effect_gen import (
     generate_snow_sprites,
 )
 from animeforge.pipeline.scene_gen import generate_scene_backgrounds
+from animeforge.widgets import ProgressPanel
 
 if TYPE_CHECKING:
     from textual.app import ComposeResult
@@ -44,47 +44,6 @@ if TYPE_CHECKING:
     from animeforge.models import Project
 
 logger = logging.getLogger(__name__)
-
-
-class _TaskRow(Horizontal):
-    """A single generation task with label + progress bar."""
-
-    DEFAULT_CSS = """
-    _TaskRow {
-        height: 1;
-        margin: 0;
-    }
-
-    _TaskRow .task-label {
-        width: 26;
-        color: #c4b5fd;
-    }
-
-    _TaskRow ProgressBar {
-        width: 1fr;
-    }
-
-    _TaskRow .task-pct {
-        width: 6;
-        text-align: right;
-        color: #a78bfa;
-    }
-    """
-
-    def __init__(self, task_name: str, task_id: str) -> None:
-        super().__init__(id=task_id)
-        self._task_name = task_name
-
-    def compose(self) -> ComposeResult:
-        yield Label(self._task_name, classes="task-label")
-        yield ProgressBar(total=100, show_percentage=True, show_eta=False)
-        yield Label("0%", classes="task-pct")
-
-    def update_progress(self, pct: float) -> None:
-        bar = self.query_one(ProgressBar)
-        bar.update(progress=pct)
-        lbl = self.query_one(".task-pct", Label)
-        lbl.update(f"{pct:.0f}%")
 
 
 class GenerationScreen(Screen[None]):
@@ -113,20 +72,8 @@ class GenerationScreen(Screen[None]):
                     yield Checkbox("Effects", value=True, id="phase-fx")
                     yield Checkbox("All variants", value=True, id="phase-variants")
 
-            # ── Task progress panel ──────────────────────────
-            with Vertical(classes="card", id="task-panel"):
-                yield Static("Generation Tasks", classes="card-title")
-                yield _TaskRow("Background layers", "task-bg")
-                yield _TaskRow("Character sprites", "task-char")
-                yield _TaskRow("Animation frames", "task-anim")
-                yield _TaskRow("Effects / particles", "task-fx")
-                yield _TaskRow("Time-of-day variants", "task-tod")
-                yield _TaskRow("Weather variants", "task-weather")
-
-            # ── Overall progress ─────────────────────────────
-            with Vertical(classes="card"):
-                yield Static("Overall Progress", classes="card-title")
-                yield ProgressBar(total=100, show_percentage=True, show_eta=True, id="overall-bar")
+            # ── Task progress panel (ProgressPanel widget) ───
+            yield ProgressPanel(title="Generation Tasks", id="progress-panel")
 
             # ── Controls ─────────────────────────────────────
             with Horizontal(classes="toolbar"):
@@ -143,6 +90,16 @@ class GenerationScreen(Screen[None]):
     def on_mount(self) -> None:
         self._generation_running = False
         self._cancel_event: asyncio.Event | None = None
+
+        # Register all generation tasks with the ProgressPanel
+        panel = self.query_one("#progress-panel", ProgressPanel)
+        panel.add_task("bg", "Background layers")
+        panel.add_task("char", "Character sprites")
+        panel.add_task("anim", "Animation frames")
+        panel.add_task("fx", "Effects / particles")
+        panel.add_task("tod", "Time-of-day variants")
+        panel.add_task("weather", "Weather variants")
+
         log = self.query_one("#gen-log", RichLog)
         log.write("[bold magenta]AnimeForge Generator[/bold magenta] ready.")
         log.write("Load a project and press [bold green]Start Generation[/bold green] to begin.")
@@ -176,6 +133,11 @@ class GenerationScreen(Screen[None]):
         self._generation_running = True
         self._cancel_event = asyncio.Event()
         self._set_status("Generation started...")
+
+        # Reset panel for a fresh run
+        panel = self.query_one("#progress-panel", ProgressPanel)
+        panel.reset()
+
         self.run_worker(self._run_generation(proj), exclusive=True)
 
     def action_cancel_generation(self) -> None:
@@ -189,7 +151,7 @@ class GenerationScreen(Screen[None]):
     async def _run_generation(self, proj: Project) -> None:
         """Run the real generation pipeline with progress updates."""
         log = self.query_one("#gen-log", RichLog)
-        overall_bar = self.query_one("#overall-bar", ProgressBar)
+        panel = self.query_one("#progress-panel", ProgressPanel)
 
         config = load_config()
         output_dir = Path(proj.project_dir) / "generated" if proj.project_dir else Path("output")
@@ -231,18 +193,11 @@ class GenerationScreen(Screen[None]):
         do_fx = self.query_one("#phase-fx", Checkbox).value
         do_variants = self.query_one("#phase-variants", Checkbox).value
 
-        completed_phases = 0
-        total_phases = 6
-
-        def _update_overall() -> None:
-            pct = (completed_phases / total_phases) * 100
-            overall_bar.update(progress=pct)
-
         def _cancelled() -> bool:
             return bool(self._cancel_event and self._cancel_event.is_set())
 
-        def _make_progress_cb(task_row: _TaskRow) -> ProgressCallback:
-            """Create a progress callback that updates a task row.
+        def _make_progress_cb(task_id: str) -> ProgressCallback:
+            """Create a progress callback that updates a task via ProgressPanel.
 
             Since _run_generation is an async coroutine running in the
             main event loop (not a thread), we call widget methods directly.
@@ -251,26 +206,25 @@ class GenerationScreen(Screen[None]):
             def cb(step: int, total: int, status: str) -> None:
                 if total > 0:
                     pct = (step / total) * 90 + 10  # 10-100 range
-                    task_row.update_progress(pct)
+                    panel.set_progress(task_id, pct, status)
 
             return cb
 
         try:
             # ── Phase 1: Background layers ────────────────
-            task_bg = self.query_one("#task-bg", _TaskRow)
             if _cancelled():
                 return
             if do_bg:
                 if backend_available:
                     log.write("[bold cyan]Starting:[/bold cyan] Background layers")
-                    task_bg.update_progress(10)
+                    panel.set_progress("bg", 10, "Starting...")
                     try:
                         bg_results = await generate_scene_backgrounds(
                             proj.scene,
                             backend,
                             config,
                             output_dir=output_dir / "backgrounds",
-                            progress_callback=_make_progress_cb(task_bg),
+                            progress_callback=_make_progress_cb("bg"),
                         )
                         # Update project model with generated paths
                         if proj.scene.layers:
@@ -292,18 +246,15 @@ class GenerationScreen(Screen[None]):
                     log.write("[dim]Skipped:[/dim] Background layers (no backend)")
             else:
                 log.write("[dim]Skipped:[/dim] Background layers (unchecked)")
-            task_bg.update_progress(100)
-            completed_phases += 1
-            _update_overall()
+            panel.set_progress("bg", 100, "Done")
 
             # ── Phase 2: Character sprites ────────────────
-            task_char = self.query_one("#task-char", _TaskRow)
             if _cancelled():
                 return
             if do_char:
                 if backend_available and proj.character:
                     log.write("[bold cyan]Starting:[/bold cyan] Character sprites")
-                    task_char.update_progress(10)
+                    panel.set_progress("char", 10, "Starting...")
                     try:
                         char_results = await generate_character_animations(
                             proj.character,
@@ -311,7 +262,7 @@ class GenerationScreen(Screen[None]):
                             backend,
                             config,
                             output_dir=output_dir / "characters",
-                            progress_callback=_make_progress_cb(task_char),
+                            progress_callback=_make_progress_cb("char"),
                         )
                         # Update animation sprite_sheet paths on project model
                         for anim in proj.character.animations:
@@ -322,19 +273,18 @@ class GenerationScreen(Screen[None]):
                             f"Character sprites ({len(char_results)} animations)"
                         )
                     except Exception as exc:
-                        log.write(f"[bold red]Error:[/bold red] Character generation failed: {exc}")
+                        log.write(
+                            f"[bold red]Error:[/bold red] Character generation failed: {exc}"
+                        )
                         logger.exception("Character generation failed")
                 else:
                     reason = "no backend" if not backend_available else "no character defined"
                     log.write(f"[dim]Skipped:[/dim] Character sprites ({reason})")
             else:
                 log.write("[dim]Skipped:[/dim] Character sprites (unchecked)")
-            task_char.update_progress(100)
-            completed_phases += 1
-            _update_overall()
+            panel.set_progress("char", 100, "Done")
 
             # ── Phase 3: Animation frames (covered by character gen above) ──
-            task_anim = self.query_one("#task-anim", _TaskRow)
             if do_char:
                 log.write(
                     "[bold green]Completed:[/bold green] "
@@ -342,17 +292,14 @@ class GenerationScreen(Screen[None]):
                 )
             else:
                 log.write("[dim]Skipped:[/dim] Animation frames (unchecked)")
-            task_anim.update_progress(100)
-            completed_phases += 1
-            _update_overall()
+            panel.set_progress("anim", 100, "Done")
 
             # ── Phase 4: Effects / particles ──────────────
-            task_fx = self.query_one("#task-fx", _TaskRow)
             if _cancelled():
                 return
             if do_fx:
                 log.write("[bold cyan]Starting:[/bold cyan] Effects / particles")
-                task_fx.update_progress(10)
+                panel.set_progress("fx", 10, "Starting...")
                 fx_dir = output_dir / "effects"
                 try:
                     rain_path = generate_rain_sprites(fx_dir)
@@ -364,7 +311,7 @@ class GenerationScreen(Screen[None]):
                             sprite_sheet=rain_path,
                         )
                     )
-                    task_fx.update_progress(30)
+                    panel.set_progress("fx", 30, "Rain done")
 
                     snow_path = generate_snow_sprites(fx_dir)
                     proj.scene.effects.append(
@@ -375,7 +322,7 @@ class GenerationScreen(Screen[None]):
                             sprite_sheet=snow_path,
                         )
                     )
-                    task_fx.update_progress(55)
+                    panel.set_progress("fx", 55, "Snow done")
 
                     leaf_path = generate_leaf_sprites(fx_dir)
                     proj.scene.effects.append(
@@ -386,7 +333,7 @@ class GenerationScreen(Screen[None]):
                             sprite_sheet=leaf_path,
                         )
                     )
-                    task_fx.update_progress(80)
+                    panel.set_progress("fx", 80, "Leaves done")
 
                     sakura_path = generate_sakura_sprites(fx_dir)
                     proj.scene.effects.append(
@@ -406,12 +353,9 @@ class GenerationScreen(Screen[None]):
                     logger.exception("Effect generation failed")
             else:
                 log.write("[dim]Skipped:[/dim] Effects / particles (unchecked)")
-            task_fx.update_progress(100)
-            completed_phases += 1
-            _update_overall()
+            panel.set_progress("fx", 100, "Done")
 
             # ── Phase 5: Time-of-day variants (done in bg phase) ──
-            task_tod = self.query_one("#task-tod", _TaskRow)
             if do_variants:
                 log.write(
                     "[bold green]Completed:[/bold green] "
@@ -419,12 +363,9 @@ class GenerationScreen(Screen[None]):
                 )
             else:
                 log.write("[dim]Skipped:[/dim] Time-of-day variants (unchecked)")
-            task_tod.update_progress(100)
-            completed_phases += 1
-            _update_overall()
+            panel.set_progress("tod", 100, "Done")
 
             # ── Phase 6: Weather variants (placeholder) ───
-            task_weather = self.query_one("#task-weather", _TaskRow)
             if do_variants:
                 log.write(
                     "[bold green]Completed:[/bold green] "
@@ -432,9 +373,7 @@ class GenerationScreen(Screen[None]):
                 )
             else:
                 log.write("[dim]Skipped:[/dim] Weather variants (unchecked)")
-            task_weather.update_progress(100)
-            completed_phases += 1
-            _update_overall()
+            panel.set_progress("weather", 100, "Done")
 
         finally:
             # Always disconnect and clean up
