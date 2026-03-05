@@ -43,6 +43,7 @@ class DryRunCheck:
     label: str
     passed: bool
     message: str = ""
+    level: str = "info"
 
 
 @dataclass
@@ -56,6 +57,11 @@ class DryRunResult:
     @property
     def valid(self) -> bool:
         return all(c.passed for c in self.checks)
+
+    @property
+    def warnings(self) -> list[DryRunCheck]:
+        """Return checks that are warnings (non-blocking but noteworthy)."""
+        return [c for c in self.checks if c.level == "warning"]
 
 
 def validate_export(
@@ -110,6 +116,61 @@ def validate_export(
             )
         )
 
+    # ── Asset-on-disk warnings (non-blocking) ────────────────────────
+    # Check that layers have actual image files on disk.
+    layers_with_images = sum(
+        1
+        for layer in scene.layers
+        if layer.image_path and layer.image_path.exists()
+        or any(p.exists() for p in layer.time_variants.values())
+    )
+    if scene.layers and layers_with_images == 0:
+        checks.append(
+            DryRunCheck(
+                label="No background images found on disk",
+                passed=True,
+                message="Scene has layers but none have generated image files",
+                level="warning",
+            )
+        )
+
+    # Check that character animations have sprite sheet files on disk.
+    if project.character and project.character.animations:
+        sheets_on_disk = sum(
+            1
+            for a in project.character.animations
+            if a.sprite_sheet and a.sprite_sheet.exists()
+        )
+        if sheets_on_disk == 0:
+            checks.append(
+                DryRunCheck(
+                    label="No character sprite sheets found on disk",
+                    passed=True,
+                    message=(
+                        f"Character has {len(project.character.animations)} "
+                        f"animation(s) but no sprite_sheet files exist"
+                    ),
+                    level="warning",
+                )
+            )
+
+    # Check that effect sprites have been generated.
+    if scene.effects:
+        fx_sheets_on_disk = sum(
+            1
+            for e in scene.effects
+            if e.sprite_sheet and e.sprite_sheet.exists()
+        )
+        if fx_sheets_on_disk == 0:
+            checks.append(
+                DryRunCheck(
+                    label="No effect sprites found on disk",
+                    passed=True,
+                    message="Effects are defined but no sprite_sheet files exist",
+                    level="warning",
+                )
+            )
+
     # 5. Runtime JS available
     runtime_dir = Path(__file__).resolve().parent.parent / "runtime"
     runtime_js = runtime_dir / RUNTIME_JS_FILENAME
@@ -156,6 +217,21 @@ def validate_export(
         output_dir=config.output_dir,
         estimated_files=estimated,
     )
+
+
+@dataclass
+class ExportSummary:
+    """Summary of exported assets, returned by :func:`export_project`."""
+
+    output_dir: Path
+    background_count: int = 0
+    animation_count: int = 0
+    effect_count: int = 0
+
+    @property
+    def total_assets(self) -> int:
+        """Total number of asset files (backgrounds + animations + effects)."""
+        return self.background_count + self.animation_count + self.effect_count
 
 
 def export_animated_image(
@@ -267,7 +343,7 @@ def export_project(
     config: ExportConfig,
     *,
     app_config: AppConfig | None = None,
-) -> Path:
+) -> ExportSummary:
     """Export a fully-generated project to a deployable web directory.
 
     The output structure is::
@@ -292,8 +368,8 @@ def export_project(
 
     Returns
     -------
-    Path
-        The root of the output directory.
+    ExportSummary
+        Summary including the output directory path and asset counts.
     """
     if app_config is None:
         app_config = load_config()
@@ -305,6 +381,11 @@ def export_project(
 
     for d in (bg_dir, char_dir, fx_dir):
         d.mkdir(parents=True, exist_ok=True)
+
+    # Asset counters for the export summary.
+    bg_copied = 0
+    char_copied = 0
+    fx_copied = 0
 
     # ------------------------------------------------------------------
     # 1. Copy / optimise background images — build per-layer image maps
@@ -321,6 +402,7 @@ def export_project(
                 dest = bg_dir / dest_name
                 optimize_image(src, dest, quality=config.image_quality, img_format=ext)
                 layer_images[time.value] = f"backgrounds/{dest_name}"
+                bg_copied += 1
             else:
                 logger.warning("Background source missing: %s", src)
         layers_manifest.append(
@@ -371,6 +453,7 @@ def export_project(
                         "loop": anim.loop,
                     }
                 )
+                char_copied += 1
             else:
                 logger.warning("Sprite sheet missing for animation '%s'", anim.id)
 
@@ -402,6 +485,7 @@ def export_project(
             if effect.particle_config:
                 entry["particle_config"] = effect.particle_config
             fx_manifest.append(entry)
+            fx_copied += 1
 
     # ------------------------------------------------------------------
     # 4. Generate scene.json (runtime descriptor)
@@ -561,8 +645,27 @@ def export_project(
                     loop=0 if anim.loop else 1,
                 )
 
+    # ------------------------------------------------------------------
+    # 9. Log export summary
+    # ------------------------------------------------------------------
+    logger.info(
+        "Export summary: %d background(s), %d animation(s), %d effect(s)",
+        bg_copied,
+        char_copied,
+        fx_copied,
+    )
+    if bg_copied + char_copied + fx_copied == 0:
+        logger.warning(
+            "Export produced an empty package — run generation first"
+        )
+
     logger.info("Export complete -> %s", out)
-    return out
+    return ExportSummary(
+        output_dir=out,
+        background_count=bg_copied,
+        animation_count=char_copied,
+        effect_count=fx_copied,
+    )
 
 
 # ---------------------------------------------------------------------------

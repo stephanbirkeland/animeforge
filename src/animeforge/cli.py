@@ -222,19 +222,31 @@ def export(
         result = validate_export(project, export_config)
         typer.echo("Dry run: export validation")
         for check in result.checks:
-            symbol = "\u2713" if check.passed else "\u2717"
+            if check.level == "warning":
+                symbol = "!"
+            elif check.passed:
+                symbol = "\u2713"
+            else:
+                symbol = "\u2717"
             typer.echo(f"  {symbol} {check.label}")
-            if not check.passed and check.message:
+            if check.message:
                 typer.echo(f"    {check.message}")
         typer.echo(f"Export would write to: {result.output_dir}/")
         typer.echo(f"Estimated files: {result.estimated_files}")
+        if result.warnings:
+            typer.echo(
+                "Warning: No generated assets found on disk. "
+                "Export will produce an empty web package. "
+                "Run generation first.",
+                err=True,
+            )
         if not result.valid:
             raise typer.Exit(1)
     else:
         from animeforge.pipeline.export import export_project  # noqa: PLC0415
 
-        export_project(project, export_config)
-        typer.echo(f"Exported to {export_config.output_dir}")
+        summary = export_project(project, export_config)
+        typer.echo(f"Exported to {summary.output_dir}")
 
 
 @app.command()

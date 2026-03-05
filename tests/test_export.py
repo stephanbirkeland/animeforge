@@ -35,14 +35,16 @@ def _populated_project(sample_project: Project, tmp_path: Path) -> Project:
 
 def test_export_creates_output_dir(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
     assert out.exists()
     assert out.is_dir()
 
 
 def test_export_creates_scene_json(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
     scene_json = out / "scene.json"
     assert scene_json.exists()
 
@@ -67,7 +69,8 @@ def test_export_creates_scene_json(_populated_project: Project, tmp_path: Path):
 
 def test_export_creates_index_html(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
     index = out / "index.html"
     assert index.exists()
 
@@ -79,7 +82,8 @@ def test_export_creates_index_html(_populated_project: Project, tmp_path: Path):
 
 def test_export_copies_runtime_js(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
 
     runtime_js = out / "animeforge-runtime.js"
     scene_loader = out / "scene-loader.js"
@@ -92,14 +96,16 @@ def test_export_copies_runtime_js(_populated_project: Project, tmp_path: Path):
 
 def test_export_creates_backgrounds_dir(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
     bg_dir = out / "backgrounds"
     assert bg_dir.exists()
 
 
 def test_export_scene_json_has_zones(_populated_project: Project, tmp_path: Path):
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
     data = json.loads((out / "scene.json").read_text(encoding="utf-8"))
     assert len(data["zones"]) == 1
     zone = data["zones"][0]
@@ -233,7 +239,8 @@ def test_export_css_template_not_found_fallback(
     monkeypatch.setattr(export_module, "Environment", _MissingCSSEnv)
 
     config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-    out = export_project(_populated_project, config)
+    summary = export_project(_populated_project, config)
+    out = summary.output_dir
 
     css_path = out / "scene.css"
     assert css_path.exists()

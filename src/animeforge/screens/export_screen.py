@@ -244,11 +244,28 @@ class ExportScreen(Screen[None]):
             _bar(30)
             _log("[bold cyan]Running export pipeline...[/bold cyan]")
 
-            output_path = export_project(proj, export_config)
+            summary = export_project(proj, export_config)
 
             _bar(100)
-            _log(f"[bold green]Export complete![/bold green] Output written to {output_path}")
-            _status("Export complete!")
+            _log(
+                f"[bold green]Export complete![/bold green] "
+                f"Output written to {summary.output_dir}"
+            )
+            _log(
+                f"  Assets: {summary.background_count} background(s), "
+                f"{summary.animation_count} animation(s), "
+                f"{summary.effect_count} effect(s)"
+            )
+            if summary.total_assets == 0:
+                _log(
+                    "[bold yellow]Warning:[/bold yellow] Export produced an "
+                    "empty package with no asset files. Run generation first."
+                )
+                _status(
+                    "Export complete (warning: no assets — run generation first)"
+                )
+            else:
+                _status("Export complete!")
         except Exception as exc:
             logger.exception("Export failed")
             _log(f"[bold red]Export failed:[/bold red] {exc}")

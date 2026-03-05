@@ -220,8 +220,8 @@ class TestExportProjectAnimated:
             image_format="png",
             animated_format="gif",
         )
-        out = export_project(project_with_sheet, config)
-        gif_files = list(out.glob("*.gif"))
+        summary = export_project(project_with_sheet, config)
+        gif_files = list(summary.output_dir.glob("*.gif"))
         assert len(gif_files) > 0
 
     def test_export_with_apng_format(self, project_with_sheet: Project, tmp_path: Path) -> None:
@@ -230,9 +230,9 @@ class TestExportProjectAnimated:
             image_format="png",
             animated_format="apng",
         )
-        out = export_project(project_with_sheet, config)
+        summary = export_project(project_with_sheet, config)
         char_name = project_with_sheet.character.name
-        apng_files = list(out.glob(f"{char_name}_*.png"))
+        apng_files = list(summary.output_dir.glob(f"{char_name}_*.png"))
         assert len(apng_files) > 0
 
     def test_export_without_animated_format(
@@ -241,8 +241,8 @@ class TestExportProjectAnimated:
         tmp_path: Path,
     ) -> None:
         config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
-        out = export_project(project_with_sheet, config)
-        gif_files = list(out.glob("*.gif"))
+        summary = export_project(project_with_sheet, config)
+        gif_files = list(summary.output_dir.glob("*.gif"))
         assert len(gif_files) == 0
 
 
