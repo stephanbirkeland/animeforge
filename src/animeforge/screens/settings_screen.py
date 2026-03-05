@@ -185,6 +185,18 @@ class SettingsScreen(Screen[None]):
                     placeholder="euler_ancestral",
                     id="gen-sampler",
                 )
+                yield Label("Scheduler")
+                yield Input(
+                    value=config.generation.scheduler,
+                    placeholder="normal",
+                    id="gen-scheduler",
+                )
+                yield Label("Batch Size")
+                yield Input(
+                    value=str(config.generation.batch_size),
+                    placeholder="1",
+                    id="gen-batch-size",
+                )
                 yield Label("Seed (-1 = random)")
                 yield Input(
                     value=str(config.generation.seed),
@@ -256,6 +268,11 @@ class SettingsScreen(Screen[None]):
             self._set_status("Invalid CFG Scale — must be a number.")
             return
         try:
+            gen_batch_size = int(self.query_one("#gen-batch-size", Input).value or 1)
+        except ValueError:
+            self._set_status("Invalid Batch Size — must be an integer.")
+            return
+        try:
             gen_seed = int(self.query_one("#gen-seed", Input).value or -1)
         except ValueError:
             self._set_status("Invalid Seed — must be an integer.")
@@ -293,6 +310,8 @@ class SettingsScreen(Screen[None]):
                 "steps": gen_steps,
                 "cfg_scale": gen_cfg,
                 "sampler": self.query_one("#gen-sampler", Input).value,
+                "scheduler": self.query_one("#gen-scheduler", Input).value,
+                "batch_size": gen_batch_size,
                 "seed": gen_seed,
             },
         }
@@ -350,6 +369,8 @@ class SettingsScreen(Screen[None]):
         self.query_one("#gen-steps", Input).value = str(defaults.generation.steps)
         self.query_one("#gen-cfg", Input).value = str(defaults.generation.cfg_scale)
         self.query_one("#gen-sampler", Input).value = defaults.generation.sampler
+        self.query_one("#gen-scheduler", Input).value = defaults.generation.scheduler
+        self.query_one("#gen-batch-size", Input).value = str(defaults.generation.batch_size)
         self.query_one("#gen-seed", Input).value = str(defaults.generation.seed)
         self.query_one("#dir-config", Input).value = str(defaults.config_dir)
         self.query_one("#dir-projects", Input).value = str(defaults.projects_dir)

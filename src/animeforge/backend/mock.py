@@ -15,6 +15,14 @@ if TYPE_CHECKING:
     from animeforge.backend.base import ProgressCallback
 
 
+_FONT_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Debian/Ubuntu
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",  # Arch
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",  # Fedora
+    "/System/Library/Fonts/Helvetica.ttc",  # macOS
+]
+
+
 class MockBackend:
     """A mock generation backend that produces gradient images with prompt text.
 
@@ -89,11 +97,14 @@ def _create_gradient_image(width: int, height: int, prompt: str, seed: int) -> I
         draw.line([(0, y), (width, y)], fill=(r, g, b))
 
     # Overlay prompt text
-    font: ImageFont.FreeTypeFont | ImageFont.ImageFont
-    try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-    except OSError:
-        font = ImageFont.load_default()
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont = ImageFont.load_default()
+    for font_path in _FONT_PATHS:
+        if Path(font_path).is_file():
+            try:
+                font = ImageFont.truetype(font_path, 16)
+            except OSError:
+                continue
+            break
 
     label = f"[MOCK] {prompt[:80]}"
     draw.text((10, 10), label, fill=(255, 255, 255), font=font)

@@ -18,7 +18,7 @@ class ExportConfig(BaseModel):
     image_format: str = "webp"
     include_retina: bool = False
     include_preview: bool = True
-    times: list[TimeOfDay] = list(TimeOfDay)
-    weathers: list[Weather] = list(Weather)
-    seasons: list[Season] = list(Season)
+    times: list[TimeOfDay] = Field(default_factory=lambda: list(TimeOfDay))
+    weathers: list[Weather] = Field(default_factory=lambda: list(Weather))
+    seasons: list[Season] = Field(default_factory=lambda: list(Season))
     animated_format: Literal["gif", "apng"] | None = None
