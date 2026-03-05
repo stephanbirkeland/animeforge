@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from textual.widgets import Button, DataTable, Input, Label, ProgressBar, RichLog, Select
 
+from animeforge.widgets import ProgressPanel
+
 from animeforge.app import AnimeForgeApp
 
 # ---------------------------------------------------------------------------
@@ -272,23 +274,15 @@ async def test_generation_screen_mounts() -> None:
 
 
 async def test_generation_has_progress_elements() -> None:
-    """Generation screen should have progress bars and task rows."""
+    """Generation screen should have a ProgressPanel widget."""
     app = AnimeForgeApp()
     async with app.run_test() as pilot:
         pilot.app.navigate("generation")
         await pilot.pause()
 
         screen = pilot.app.screen
-        # Overall progress bar
-        assert screen.query_one("#overall-bar", ProgressBar) is not None
-
-        # Task rows with their progress bars
-        assert screen.query_one("#task-bg") is not None
-        assert screen.query_one("#task-char") is not None
-        assert screen.query_one("#task-anim") is not None
-        assert screen.query_one("#task-fx") is not None
-        assert screen.query_one("#task-tod") is not None
-        assert screen.query_one("#task-weather") is not None
+        # ProgressPanel replaces individual task rows and overall bar
+        assert screen.query_one("#progress-panel", ProgressPanel) is not None
 
 
 async def test_generation_has_log_and_controls() -> None:
