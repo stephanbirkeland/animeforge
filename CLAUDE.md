@@ -88,8 +88,8 @@ Loads from: init defaults → env vars (`ANIMEFORGE_*`) → TOML file.
 Any config field change must update BOTH `config.py` (the settings class) AND `screens/settings_screen.py` (the TUI form). Forgetting the UI side is a common agent mistake.
 
 ## Current Metrics (as of 2026-03-05)
-- **217 tests**, 35% coverage
-- **7375 source lines** across 44 Python files
+- **260 tests**, 56% coverage
+- **7859 source lines** across 44 Python files
 - **0 open issues**, 33 closed issues
 - **0 TODO/FIXME/HACK** markers
 - Lint: `ruff check` clean | Types: `mypy --strict` clean | Tests: all passing
