@@ -7,8 +7,18 @@ import jinja2
 import pytest
 
 from animeforge.models import ExportConfig, Project
+from animeforge.models.enums import EffectType
+from animeforge.models.scene import EffectDef
 from animeforge.pipeline import export as export_module
-from animeforge.pipeline.export import ExportError, _generate_preview, export_project
+from animeforge.pipeline.export import (
+    DryRunCheck,
+    DryRunResult,
+    ExportError,
+    ExportSummary,
+    _generate_preview,
+    export_project,
+    validate_export,
+)
 
 
 @pytest.fixture
@@ -249,3 +259,232 @@ def test_export_css_template_not_found_fallback(
     assert ".animeforge-scene" in css_content
     assert f"{_populated_project.scene.width}px" in css_content
     assert f"{_populated_project.scene.height}px" in css_content
+
+
+# ---------------------------------------------------------------------------
+# DryRunCheck / DryRunResult unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestDryRunResult:
+    """Tests for DryRunResult properties."""
+
+    def test_warnings_filters_warning_level(self) -> None:
+        """warnings property returns only level='warning' checks."""
+        checks = [
+            DryRunCheck(label="info check", passed=True, level="info"),
+            DryRunCheck(label="warn check", passed=True, level="warning"),
+            DryRunCheck(label="another info", passed=True, level="info"),
+            DryRunCheck(label="warn 2", passed=True, level="warning"),
+        ]
+        result = DryRunResult(checks=checks)
+        warnings = result.warnings
+        assert len(warnings) == 2
+        assert all(w.level == "warning" for w in warnings)
+        assert warnings[0].label == "warn check"
+        assert warnings[1].label == "warn 2"
+
+    def test_valid_true_when_all_passed(self) -> None:
+        """valid is True when all checks pass, including warnings."""
+        checks = [
+            DryRunCheck(label="ok", passed=True, level="info"),
+            DryRunCheck(label="warn", passed=True, level="warning"),
+        ]
+        result = DryRunResult(checks=checks)
+        assert result.valid is True
+
+    def test_valid_false_when_check_fails(self) -> None:
+        """valid is False when any check has passed=False."""
+        checks = [
+            DryRunCheck(label="ok", passed=True),
+            DryRunCheck(label="fail", passed=False, message="missing JS"),
+        ]
+        result = DryRunResult(checks=checks)
+        assert result.valid is False
+
+    def test_valid_true_empty_checks(self) -> None:
+        """valid is True when there are no checks at all."""
+        result = DryRunResult(checks=[])
+        assert result.valid is True
+
+
+# ---------------------------------------------------------------------------
+# ExportSummary tests
+# ---------------------------------------------------------------------------
+
+
+class TestExportSummary:
+    """Tests for ExportSummary.total_assets property."""
+
+    def test_total_assets_sums_all_counts(self, tmp_path: Path) -> None:
+        summary = ExportSummary(
+            output_dir=tmp_path,
+            background_count=2,
+            animation_count=1,
+            effect_count=3,
+        )
+        assert summary.total_assets == 6
+
+    def test_total_assets_zero(self, tmp_path: Path) -> None:
+        summary = ExportSummary(output_dir=tmp_path)
+        assert summary.total_assets == 0
+
+
+# ---------------------------------------------------------------------------
+# validate_export() edge case tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidateExport:
+    """Tests for validate_export() warning-level checks."""
+
+    def test_warns_no_background_images(self, sample_project: Project) -> None:
+        """Layers exist but no image files on disk -> warning."""
+        config = ExportConfig(image_format="png")
+        result = validate_export(sample_project, config)
+        warning_labels = [w.label for w in result.warnings]
+        assert "No background images found on disk" in warning_labels
+
+    def test_warns_no_character_sprite_sheets(self, sample_project: Project) -> None:
+        """Character animations with no sprite_sheet files -> warning."""
+        config = ExportConfig(image_format="png")
+        result = validate_export(sample_project, config)
+        warning_labels = [w.label for w in result.warnings]
+        assert "No character sprite sheets found on disk" in warning_labels
+
+    def test_warns_no_effect_sprites(self, sample_project: Project) -> None:
+        """Effects defined but no sprite_sheet files on disk -> warning."""
+        sample_project.scene.effects.append(
+            EffectDef(id="rain", type=EffectType.PARTICLE)
+        )
+        config = ExportConfig(image_format="png")
+        result = validate_export(sample_project, config)
+        warning_labels = [w.label for w in result.warnings]
+        assert "No effect sprites found on disk" in warning_labels
+
+    def test_warnings_are_non_blocking(self, sample_project: Project) -> None:
+        """All warning checks have passed=True, so result.valid depends on JS/templates only."""
+        sample_project.scene.effects.append(
+            EffectDef(id="snow", type=EffectType.OVERLAY)
+        )
+        config = ExportConfig(image_format="png")
+        result = validate_export(sample_project, config)
+        for w in result.warnings:
+            assert w.passed is True
+
+    def test_result_includes_project_name(self, sample_project: Project) -> None:
+        """First check should contain the project name."""
+        config = ExportConfig(image_format="png")
+        result = validate_export(sample_project, config)
+        assert any(sample_project.name in c.label for c in result.checks)
+
+
+# ---------------------------------------------------------------------------
+# export_project() edge case tests
+# ---------------------------------------------------------------------------
+
+
+def test_export_zero_assets_summary(sample_project: Project, tmp_path: Path) -> None:
+    """Export with no generated assets produces zero counts."""
+    config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
+    summary = export_project(sample_project, config)
+    assert summary.total_assets == 0
+    assert summary.background_count == 0
+    assert summary.animation_count == 0
+    assert summary.effect_count == 0
+
+
+def test_export_with_include_preview_no_backgrounds(
+    sample_project: Project, tmp_path: Path
+) -> None:
+    """include_preview=True but no background images -> no preview.jpg, no error."""
+    config = ExportConfig(
+        output_dir=tmp_path / "export_out",
+        image_format="png",
+        include_preview=True,
+    )
+    summary = export_project(sample_project, config)
+    assert not (summary.output_dir / "preview.jpg").exists()
+
+
+def test_export_animated_no_sprite_sheets_skipped(
+    sample_project: Project, tmp_path: Path
+) -> None:
+    """animated_format='gif' but no sprite_sheet files -> no GIFs, no error."""
+    config = ExportConfig(
+        output_dir=tmp_path / "export_out",
+        image_format="png",
+        animated_format="gif",
+    )
+    summary = export_project(sample_project, config)
+    gif_files = list(summary.output_dir.glob("*.gif"))
+    assert len(gif_files) == 0
+
+
+def test_export_with_effect_sprite_sheet(
+    sample_project: Project, tmp_path: Path
+) -> None:
+    """Effect with a valid sprite_sheet on disk gets copied to output."""
+    from PIL import Image
+
+    sprite = Image.new("RGBA", (128, 32), (200, 200, 255, 180))
+    sprite_path = tmp_path / "rain_sprite.png"
+    sprite.save(sprite_path)
+
+    sample_project.scene.effects.append(
+        EffectDef(id="rain", type=EffectType.PARTICLE, sprite_sheet=sprite_path)
+    )
+    config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
+    summary = export_project(sample_project, config)
+    assert summary.effect_count == 1
+    assert (summary.output_dir / "effects" / "rain.png").exists()
+
+
+def test_export_effect_with_weather_and_season_triggers(
+    sample_project: Project, tmp_path: Path
+) -> None:
+    """Effect with weather/season triggers includes them in scene.json."""
+    from PIL import Image
+
+    from animeforge.models.enums import Season, Weather
+
+    sprite = Image.new("RGBA", (64, 64), (255, 255, 255, 128))
+    sprite_path = tmp_path / "snow.png"
+    sprite.save(sprite_path)
+
+    sample_project.scene.effects.append(
+        EffectDef(
+            id="snow",
+            type=EffectType.PARTICLE,
+            sprite_sheet=sprite_path,
+            weather_trigger=Weather.SNOW,
+            season_trigger=Season.WINTER,
+            particle_config={"count": 100, "speed": 2.5},
+        )
+    )
+    config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
+    summary = export_project(sample_project, config)
+    assert summary.effect_count == 1
+
+    data = json.loads(
+        (summary.output_dir / "scene.json").read_text(encoding="utf-8")
+    )
+    fx = data["effects"][0]
+    assert fx["weather_trigger"] == "snow"
+    assert fx["season_trigger"] == "winter"
+    assert fx["particle_config"]["count"] == 100
+
+
+def test_export_background_source_missing_warning(
+    sample_project: Project, tmp_path: Path
+) -> None:
+    """Layer with a time_variant pointing to a non-existent file logs a warning."""
+    from animeforge.models.enums import TimeOfDay
+
+    # Point to a file that doesn't exist
+    nonexistent = tmp_path / "missing_bg.png"
+    sample_project.scene.layers[0].time_variants[TimeOfDay.DAY] = nonexistent
+
+    config = ExportConfig(output_dir=tmp_path / "export_out", image_format="png")
+    summary = export_project(sample_project, config)
+    assert summary.background_count == 0
