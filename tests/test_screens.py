@@ -9,6 +9,38 @@ from animeforge.widgets import ProgressPanel
 from animeforge.app import AnimeForgeApp
 
 # ---------------------------------------------------------------------------
+# 0. current_project property
+# ---------------------------------------------------------------------------
+
+
+def test_current_project_default_is_none() -> None:
+    """AnimeForgeApp.current_project should be None by default."""
+    app = AnimeForgeApp()
+    assert app.current_project is None
+
+
+def test_current_project_setter_and_getter() -> None:
+    """Setting current_project via the property should be reflected by the getter."""
+    from animeforge.models import Project, Scene
+
+    app = AnimeForgeApp()
+    proj = Project(name="Test", scene=Scene(name="S"))
+    app.current_project = proj
+    assert app.current_project is proj
+
+
+def test_current_project_clear_to_none() -> None:
+    """Setting current_project to None should clear it."""
+    from animeforge.models import Project, Scene
+
+    app = AnimeForgeApp()
+    proj = Project(name="Test", scene=Scene(name="S"))
+    app.current_project = proj
+    app.current_project = None
+    assert app.current_project is None
+
+
+# ---------------------------------------------------------------------------
 # 1. App launches
 # ---------------------------------------------------------------------------
 
