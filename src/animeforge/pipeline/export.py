@@ -273,16 +273,16 @@ def export_animated_image(
     try:
         sheet = Image.open(sprite_sheet_path)
     except (OSError, UnidentifiedImageError) as exc:
-        raise ExportError(
-            f"Cannot open sprite sheet for animated export: {sprite_sheet_path}"
-        ) from exc
+        msg = f"Cannot open sprite sheet for animated export: {sprite_sheet_path}"
+        raise ExportError(msg) from exc
 
     sheet_w, sheet_h = sheet.size
     effective_count = max(frame_count, 1)
     frame_w = sheet_w // effective_count
 
     if frame_w <= 0:
-        raise ExportError(f"Invalid frame width ({frame_w}) for sprite sheet: {sprite_sheet_path}")
+        msg = f"Invalid frame width ({frame_w}) for sprite sheet: {sprite_sheet_path}"
+        raise ExportError(msg)
 
     # Split sprite sheet into individual frames.
     frames: list[Image.Image] = []
@@ -291,7 +291,8 @@ def export_animated_image(
         frames.append(sheet.crop(box))
 
     if not frames:
-        raise ExportError(f"No frames extracted from sprite sheet: {sprite_sheet_path}")
+        msg = f"No frames extracted from sprite sheet: {sprite_sheet_path}"
+        raise ExportError(msg)
 
     # Calculate frame duration in milliseconds.
     duration_ms = max(1000 // max(fps, 1), 1)
@@ -436,9 +437,8 @@ def export_project(
                     sheet_img = Image.open(anim.sprite_sheet)
                     sheet_w, sheet_h = sheet_img.size
                 except (OSError, UnidentifiedImageError) as exc:
-                    raise ExportError(
-                        f"Cannot open sprite sheet for '{anim.id}': {anim.sprite_sheet}"
-                    ) from exc
+                    msg = f"Cannot open sprite sheet for '{anim.id}': {anim.sprite_sheet}"
+                    raise ExportError(msg) from exc
                 frame_w = sheet_w // max(anim.frame_count, 1)
                 frame_h = sheet_h
 
