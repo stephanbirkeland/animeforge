@@ -29,6 +29,16 @@ class AnimeForgeApp(App[None]):
 
     _current_project: Project | None = None
 
+    @property
+    def current_project(self) -> Project | None:
+        """Return the currently loaded project, or None."""
+        return self._current_project
+
+    @current_project.setter
+    def current_project(self, project: Project | None) -> None:
+        """Set the active project."""
+        self._current_project = project
+
     CSS = """
     Screen {
         background: $surface;

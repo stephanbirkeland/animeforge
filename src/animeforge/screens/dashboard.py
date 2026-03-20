@@ -237,22 +237,22 @@ class DashboardScreen(Screen[None]):
             case "btn-settings":
                 self.action_open_settings()
             case "btn-scene":
-                if getattr(self.app, "_current_project", None) is None:
+                if app.current_project is None:
                     self._set_status("No project loaded. Create or open a project first.")
                     return
                 app.navigate("scene_editor")
             case "btn-character":
-                if getattr(self.app, "_current_project", None) is None:
+                if app.current_project is None:
                     self._set_status("No project loaded. Create or open a project first.")
                     return
                 app.navigate("character_studio")
             case "btn-generate":
-                if getattr(self.app, "_current_project", None) is None:
+                if app.current_project is None:
                     self._set_status("No project loaded. Create or open a project first.")
                     return
                 app.navigate("generation")
             case "btn-export":
-                if getattr(self.app, "_current_project", None) is None:
+                if app.current_project is None:
                     self._set_status("No project loaded. Create or open a project first.")
                     return
                 app.navigate("export")
@@ -267,7 +267,8 @@ class DashboardScreen(Screen[None]):
         try:
             proj = Project.load(path)
             proj.project_dir = path if path.is_dir() else path.parent
-            self.app._current_project = proj  # type: ignore[attr-defined]
+            app: AnimeForgeApp = self.app  # type: ignore[assignment]
+            app.current_project = proj
             self._set_status(f"Opened: {proj.name}")
         except Exception as exc:  # noqa: BLE001
             self._set_status(f"Error loading project: {exc}")
@@ -301,7 +302,8 @@ class DashboardScreen(Screen[None]):
             project_dir=project_dir,
         )
         proj.save()
-        self.app._current_project = proj  # type: ignore[attr-defined]
+        app: AnimeForgeApp = self.app  # type: ignore[assignment]
+        app.current_project = proj
         self._set_status(f"Created: {name}")
         self._refresh_projects()
 
@@ -331,9 +333,10 @@ class DashboardScreen(Screen[None]):
         try:
             shutil.rmtree(path)
             # If the deleted project was the current project, clear it
-            current = getattr(self.app, "_current_project", None)
+            app: AnimeForgeApp = self.app  # type: ignore[assignment]
+            current = app.current_project
             if current is not None and getattr(current, "project_dir", None) == path:
-                self.app._current_project = None  # type: ignore[attr-defined]
+                app.current_project = None
             self._set_status(f"Deleted: {path.name}")
         except OSError as exc:
             self._set_status(f"Error deleting project: {exc}")
