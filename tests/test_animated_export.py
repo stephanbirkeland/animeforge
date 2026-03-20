@@ -201,6 +201,27 @@ class TestExportAnimatedImage:
         )
         assert output.exists()
 
+    def test_gif_export_rgb_sprite_sheet(self, tmp_path: Path) -> None:
+        """GIF export with an RGB (non-RGBA) sprite sheet hits the else branch."""
+        frame_count = 3
+        frame_size = 32
+        sheet = Image.new("RGB", (frame_size * frame_count, frame_size), (100, 150, 200))
+        sheet_path = tmp_path / "rgb_sheet.png"
+        sheet.save(sheet_path, "PNG")
+
+        output = tmp_path / "output.gif"
+        result = export_animated_image(
+            sprite_sheet_path=sheet_path,
+            frame_count=frame_count,
+            fps=10,
+            output_path=output,
+            animated_format="gif",
+        )
+        assert result == output
+        assert output.exists()
+        img = Image.open(output)
+        assert img.format == "GIF"
+
 
 class TestExportProjectAnimated:
     """Test animated export integration in export_project."""
