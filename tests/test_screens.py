@@ -330,6 +330,29 @@ async def test_generation_has_log_and_controls() -> None:
         assert screen.query_one("#btn-clear-log", Button) is not None
 
 
+async def test_generation_mock_flow_completes() -> None:
+    """Starting generation with MockBackend project completes without error."""
+    from animeforge.models import Project, Scene
+
+    app = AnimeForgeApp()
+    async with app.run_test() as pilot:
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        proj = Project(name="test", scene=Scene(name="test-scene"))
+        pilot.app._current_project = proj  # type: ignore[attr-defined]
+
+        screen = pilot.app.screen
+        screen.action_start_generation()
+        # Allow the worker to finish — poll a few times
+        for _ in range(10):
+            await pilot.pause(delay=1.0)
+            if not screen._generation_running:
+                break
+
+        assert not screen._generation_running
+
+
 # ---------------------------------------------------------------------------
 # 7. Export screen
 # ---------------------------------------------------------------------------
