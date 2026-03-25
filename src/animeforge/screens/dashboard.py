@@ -108,12 +108,12 @@ class ConfirmDeleteDialog(ModalScreen[bool]):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-confirm-delete":
-            self.dismiss(True)
+            self.dismiss(result=True)
         elif event.button.id == "btn-cancel-delete":
-            self.dismiss(False)
+            self.dismiss(result=False)
 
     def action_cancel(self) -> None:
-        self.dismiss(False)
+        self.dismiss(result=False)
 
 
 class DashboardScreen(Screen[None]):
