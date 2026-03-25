@@ -927,6 +927,139 @@ async def test_scene_editor_save_scene_updates_project(tmp_path: object) -> None
         assert "saved" in str(label.renderable).lower()
 
 
+# ---------------------------------------------------------------------------
+# 12. Generation screen interaction tests
+# ---------------------------------------------------------------------------
+
+
+async def test_generation_start_no_project_sets_status() -> None:
+    """Starting generation with no project loaded shows status message."""
+    app = AnimeForgeApp()
+    async with app.run_test() as pilot:
+        from animeforge.screens.generation import GenerationScreen
+
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        assert isinstance(screen, GenerationScreen)
+        pilot.app._current_project = None  # type: ignore[attr-defined]
+
+        screen.action_start_generation()
+        await pilot.pause()
+
+        label = screen.query_one("#gen-status", Label)
+        assert "No project loaded" in str(label.renderable)
+        assert screen._generation_running is False
+
+
+async def test_generation_start_already_running_sets_status() -> None:
+    """Starting generation when already running shows status message."""
+    app = AnimeForgeApp()
+    async with app.run_test() as pilot:
+        from animeforge.screens.generation import GenerationScreen
+
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        assert isinstance(screen, GenerationScreen)
+        screen._generation_running = True
+
+        screen.action_start_generation()
+        await pilot.pause()
+
+        label = screen.query_one("#gen-status", Label)
+        assert "already in progress" in str(label.renderable)
+
+
+async def test_generation_cancel_when_not_running_sets_status() -> None:
+    """Cancelling when no generation is running shows status message."""
+    app = AnimeForgeApp()
+    async with app.run_test() as pilot:
+        from animeforge.screens.generation import GenerationScreen
+
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        assert isinstance(screen, GenerationScreen)
+        assert screen._generation_running is False
+
+        screen.action_cancel_generation()
+        await pilot.pause()
+
+        label = screen.query_one("#gen-status", Label)
+        assert "No generation running" in str(label.renderable)
+
+
+async def test_generation_cancel_sets_event() -> None:
+    """Cancelling a running generation sets the cancel event."""
+    import asyncio
+
+    app = AnimeForgeApp()
+    async with app.run_test() as pilot:
+        from animeforge.screens.generation import GenerationScreen
+
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        assert isinstance(screen, GenerationScreen)
+        screen._generation_running = True
+        screen._cancel_event = asyncio.Event()
+
+        screen.action_cancel_generation()
+        await pilot.pause()
+
+        assert screen._cancel_event.is_set()
+        label = screen.query_one("#gen-status", Label)
+        assert "Cancelling" in str(label.renderable)
+
+
+async def test_generation_btn_back_blocked_during_generation() -> None:
+    """Clicking back while generation is running shows status and stays on screen."""
+    app = AnimeForgeApp()
+    async with app.run_test() as pilot:
+        from animeforge.screens.generation import GenerationScreen
+
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        assert isinstance(screen, GenerationScreen)
+        screen._generation_running = True
+
+        await pilot.click("#btn-back")
+        await pilot.pause()
+
+        assert isinstance(pilot.app.screen, GenerationScreen)
+        label = screen.query_one("#gen-status", Label)
+        assert "Cancel generation before going back" in str(label.renderable)
+
+
+async def test_generation_btn_clear_log_clears_log() -> None:
+    """Clicking clear log empties the RichLog widget."""
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        from animeforge.screens.generation import GenerationScreen
+
+        pilot.app.navigate("generation")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        assert isinstance(screen, GenerationScreen)
+
+        # on_mount writes initial messages to the log
+        log = screen.query_one("#gen-log", RichLog)
+        assert len(log.lines) > 0
+
+        await pilot.click("#btn-clear-log")
+        await pilot.pause()
+
+        assert len(log.lines) == 0
+
+
 async def test_scene_editor_edit_selected_zone() -> None:
     """Clicking Edit Zone populates the zone fields from the selected row."""
     app = AnimeForgeApp()
