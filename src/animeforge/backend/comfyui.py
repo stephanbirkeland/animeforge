@@ -49,9 +49,10 @@ class ComfyUIBackend:
         try:
             client = self._ensure_client()
             resp = await client.get("/system_stats")
-            return resp.status_code == HTTP_OK
         except (httpx.ConnectError, httpx.TimeoutException):
             return False
+        else:
+            return resp.status_code == HTTP_OK
 
     async def generate(
         self,
