@@ -148,6 +148,26 @@ def test_export_raises_on_corrupt_sprite_sheet(
         export_project(sample_project, config)
 
 
+def test_export_cleans_up_output_dir_on_export_error(
+    sample_project: Project,
+    tmp_path: Path,
+) -> None:
+    """Output dir must not exist after ExportError (no partial state left behind)."""
+    corrupt_sheet = tmp_path / "corrupt.png"
+    corrupt_sheet.touch()
+
+    anim = sample_project.character.animations[0]
+    anim.sprite_sheet = corrupt_sheet
+
+    out_dir = tmp_path / "export_out"
+    config = ExportConfig(output_dir=out_dir, image_format="png")
+
+    with pytest.raises(ExportError):
+        export_project(sample_project, config)
+
+    assert not out_dir.exists()
+
+
 def test_css_template_syntax_error_propagates(
     _populated_project: Project,
     tmp_path: Path,

@@ -383,16 +383,30 @@ def export_project(
     for d in (bg_dir, char_dir, fx_dir):
         d.mkdir(parents=True, exist_ok=True)
 
+    try:
+        return _do_export(project, config, out, bg_dir, char_dir, fx_dir)
+    except ExportError:
+        if out.exists():
+            shutil.rmtree(out)
+        raise
+
+
+def _do_export(
+    project: Project,
+    config: ExportConfig,
+    out: Path,
+    bg_dir: Path,
+    char_dir: Path,
+    fx_dir: Path,
+) -> ExportSummary:
+    """Execute the core export steps (sections 1–9)."""
+    scene = project.scene
+    layers_manifest: list[dict[str, object]] = []
+
     # Asset counters for the export summary.
     bg_copied = 0
     char_copied = 0
     fx_copied = 0
-
-    # ------------------------------------------------------------------
-    # 1. Copy / optimise background images — build per-layer image maps
-    # ------------------------------------------------------------------
-    scene = project.scene
-    layers_manifest: list[dict[str, object]] = []
 
     for layer in scene.layers:
         layer_images: dict[str, str] = {}
