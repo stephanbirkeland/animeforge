@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import runpy
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -496,3 +497,15 @@ def test_create_project_has_default_character(tmp_path):
     assert "idle" in anim_ids
     assert "typing" in anim_ids
     assert "reading" in anim_ids
+
+
+# ---------------------------------------------------------------------------
+# __main__.py module entry point
+# ---------------------------------------------------------------------------
+
+
+def test_module_entry_point():
+    """Verify `python -m animeforge` invokes cli.app()."""
+    with patch("animeforge.cli.app") as mock_app:
+        runpy.run_module("animeforge", run_name="__main__")
+    mock_app.assert_called_once()
