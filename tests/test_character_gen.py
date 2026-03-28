@@ -469,6 +469,7 @@ async def test_missing_pose_sequence_skipped(
     character = Character(
         name="SkipChar",
         description="character with bad pose ref",
+        default_animation="bad_anim",
         animations=[
             AnimationDef(
                 id="bad_anim",

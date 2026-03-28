@@ -319,6 +319,56 @@ class TestCharacterValidation:
         char = Character(name="C", description="d", ip_adapter_weight=1.0)
         assert char.ip_adapter_weight == 1.0
 
+    def test_invalid_default_animation_raises(self):
+        with pytest.raises(ValidationError, match="default_animation"):
+            Character(
+                name="C",
+                description="d",
+                animations=[AnimationDef(id="idle", name="Idle", zone_id="z", pose_sequence="idle")],
+                default_animation="typo",
+            )
+
+    def test_invalid_transition_from_state_raises(self):
+        with pytest.raises(ValidationError, match="from_state"):
+            Character(
+                name="C",
+                description="d",
+                animations=[AnimationDef(id="idle", name="Idle", zone_id="z", pose_sequence="idle")],
+                transitions=[StateTransition(from_state="gone", to_state="idle")],
+            )
+
+    def test_invalid_transition_to_state_raises(self):
+        with pytest.raises(ValidationError, match="to_state"):
+            Character(
+                name="C",
+                description="d",
+                animations=[AnimationDef(id="idle", name="Idle", zone_id="z", pose_sequence="idle")],
+                transitions=[StateTransition(from_state="idle", to_state="missing")],
+            )
+
+    def test_empty_animations_skips_validation(self):
+        char = Character(
+            name="C",
+            description="d",
+            animations=[],
+            default_animation="idle",
+            transitions=[StateTransition(from_state="a", to_state="b")],
+        )
+        assert char.default_animation == "idle"
+
+    def test_valid_character_with_consistent_ids(self):
+        char = Character(
+            name="C",
+            description="d",
+            animations=[
+                AnimationDef(id="idle", name="Idle", zone_id="z", pose_sequence="idle"),
+                AnimationDef(id="walk", name="Walk", zone_id="z", pose_sequence="walk"),
+            ],
+            default_animation="idle",
+            transitions=[StateTransition(from_state="idle", to_state="walk")],
+        )
+        assert char.default_animation == "idle"
+
 
 # ---------------------------------------------------------------------------
 # create_default_character tests
