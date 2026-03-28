@@ -26,7 +26,7 @@ class StateTransition(BaseModel):
 
     from_state: str
     to_state: str
-    duration_ms: int = 500
+    duration_ms: int = Field(default=500, ge=0)
     auto: bool = False
 
 

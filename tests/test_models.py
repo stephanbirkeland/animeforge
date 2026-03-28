@@ -393,3 +393,82 @@ class TestProjectLoadErrorPaths:
             empty_file.write_text("", encoding="utf-8")
             with pytest.raises(ProjectLoadError, match="project file contains invalid JSON"):
                 Project.load(empty_file)
+
+
+# ---------------------------------------------------------------------------
+# Rect field constraint tests
+# ---------------------------------------------------------------------------
+
+
+class TestRectValidation:
+    """Tests for Rect width > 0, height > 0 constraints."""
+
+    @pytest.mark.parametrize("bad_width", [0, -1, -5.5])
+    def test_rejects_invalid_width(self, bad_width: float) -> None:
+        with pytest.raises(ValidationError):
+            Rect(x=0, y=0, width=bad_width, height=10)
+
+    @pytest.mark.parametrize("bad_height", [0, -1, -5.5])
+    def test_rejects_invalid_height(self, bad_height: float) -> None:
+        with pytest.raises(ValidationError):
+            Rect(x=0, y=0, width=10, height=bad_height)
+
+    def test_accepts_positive_dimensions(self) -> None:
+        r = Rect(x=0, y=0, width=0.01, height=0.01)
+        assert r.width == 0.01
+        assert r.height == 0.01
+
+
+# ---------------------------------------------------------------------------
+# Layer field constraint tests
+# ---------------------------------------------------------------------------
+
+
+class TestLayerValidation:
+    """Tests for Layer opacity [0, 1] and parallax_factor [-1, 1] constraints."""
+
+    @pytest.mark.parametrize("bad_opacity", [1.5, -0.1, 2.0, -1.0])
+    def test_rejects_invalid_opacity(self, bad_opacity: float) -> None:
+        with pytest.raises(ValidationError):
+            Layer(id="bg", z_index=0, opacity=bad_opacity)
+
+    def test_accepts_opacity_zero(self) -> None:
+        layer = Layer(id="bg", z_index=0, opacity=0.0)
+        assert layer.opacity == 0.0
+
+    def test_accepts_opacity_one(self) -> None:
+        layer = Layer(id="bg", z_index=0, opacity=1.0)
+        assert layer.opacity == 1.0
+
+    @pytest.mark.parametrize("bad_parallax", [1.1, -1.1, 5.0, -5.0])
+    def test_rejects_invalid_parallax_factor(self, bad_parallax: float) -> None:
+        with pytest.raises(ValidationError):
+            Layer(id="bg", z_index=0, parallax_factor=bad_parallax)
+
+    def test_accepts_parallax_boundaries(self) -> None:
+        layer_neg = Layer(id="bg", z_index=0, parallax_factor=-1.0)
+        assert layer_neg.parallax_factor == -1.0
+        layer_pos = Layer(id="bg", z_index=0, parallax_factor=1.0)
+        assert layer_pos.parallax_factor == 1.0
+
+
+# ---------------------------------------------------------------------------
+# StateTransition field constraint tests
+# ---------------------------------------------------------------------------
+
+
+class TestStateTransitionValidation:
+    """Tests for StateTransition duration_ms >= 0 constraint."""
+
+    @pytest.mark.parametrize("bad_duration", [-1, -100, -999])
+    def test_rejects_negative_duration(self, bad_duration: int) -> None:
+        with pytest.raises(ValidationError):
+            StateTransition(from_state="a", to_state="b", duration_ms=bad_duration)
+
+    def test_accepts_zero_duration(self) -> None:
+        t = StateTransition(from_state="a", to_state="b", duration_ms=0)
+        assert t.duration_ms == 0
+
+    def test_accepts_positive_duration(self) -> None:
+        t = StateTransition(from_state="a", to_state="b", duration_ms=500)
+        assert t.duration_ms == 500
