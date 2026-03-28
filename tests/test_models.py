@@ -325,6 +325,46 @@ class TestCharacterValidation:
 # ---------------------------------------------------------------------------
 
 
+class TestSceneUniqueIds:
+    """Tests for Scene unique layer/zone ID enforcement."""
+
+    def test_duplicate_layer_ids_rejected(self):
+        with pytest.raises(ValidationError, match="bg"):
+            Scene(
+                name="x",
+                layers=[
+                    Layer(id="bg", z_index=0),
+                    Layer(id="bg", z_index=1),
+                ],
+            )
+
+    def test_duplicate_zone_ids_rejected(self):
+        with pytest.raises(ValidationError, match="desk"):
+            Scene(
+                name="x",
+                zones=[
+                    Zone(id="desk", name="Desk", bounds=Rect(x=0, y=0, width=1, height=1), z_index=0),
+                    Zone(id="desk", name="Desk 2", bounds=Rect(x=0, y=0, width=1, height=1), z_index=1),
+                ],
+            )
+
+    def test_unique_ids_accepted(self):
+        scene = Scene(
+            name="ok",
+            layers=[Layer(id="bg", z_index=0), Layer(id="fg", z_index=1)],
+            zones=[
+                Zone(id="a", name="A", bounds=Rect(x=0, y=0, width=1, height=1), z_index=0),
+                Zone(id="b", name="B", bounds=Rect(x=0, y=0, width=1, height=1), z_index=1),
+            ],
+        )
+        assert isinstance(scene, Scene)
+
+    def test_empty_lists_accepted(self):
+        scene = Scene(name="empty")
+        assert scene.layers == []
+        assert scene.zones == []
+
+
 class TestCreateDefaultCharacter:
     """Tests for the create_default_character() factory function."""
 

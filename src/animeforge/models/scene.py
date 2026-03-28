@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from animeforge.models.enums import EffectType, Season, TimeOfDay, Weather
 
@@ -68,3 +68,21 @@ class Scene(BaseModel):
     default_time: TimeOfDay = TimeOfDay.DAY
     default_weather: Weather = Weather.CLEAR
     default_season: Season = Season.SUMMER
+
+    @model_validator(mode="after")
+    def _check_unique_ids(self) -> Scene:
+        seen: set[str] = set()
+        for layer in self.layers:
+            if layer.id in seen:
+                msg = f"Duplicate layer id: {layer.id}"
+                raise ValueError(msg)
+            seen.add(layer.id)
+
+        seen = set()
+        for zone in self.zones:
+            if zone.id in seen:
+                msg = f"Duplicate zone id: {zone.id}"
+                raise ValueError(msg)
+            seen.add(zone.id)
+
+        return self
