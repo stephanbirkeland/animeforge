@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AnimationDef(BaseModel):
@@ -42,6 +42,32 @@ class Character(BaseModel):
     animations: list[AnimationDef] = Field(default_factory=list)
     transitions: list[StateTransition] = Field(default_factory=list)
     default_animation: str = "idle"
+
+    @model_validator(mode="after")
+    def _validate_animation_refs(self) -> Character:
+        valid_ids = {anim.id for anim in self.animations}
+        if not valid_ids:
+            return self
+        if self.default_animation not in valid_ids:
+            msg = (
+                f"default_animation '{self.default_animation}' "
+                f"is not in animation IDs: {valid_ids}"
+            )
+            raise ValueError(msg)
+        for transition in self.transitions:
+            if transition.from_state not in valid_ids:
+                msg = (
+                    f"transition from_state '{transition.from_state}' "
+                    f"is not in animation IDs: {valid_ids}"
+                )
+                raise ValueError(msg)
+            if transition.to_state not in valid_ids:
+                msg = (
+                    f"transition to_state '{transition.to_state}' "
+                    f"is not in animation IDs: {valid_ids}"
+                )
+                raise ValueError(msg)
+        return self
 
 
 def create_default_character(
