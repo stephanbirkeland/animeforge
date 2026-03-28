@@ -15,8 +15,8 @@ class Rect(BaseModel):
 
     x: float
     y: float
-    width: float
-    height: float
+    width: float = Field(gt=0)
+    height: float = Field(gt=0)
 
 
 class Layer(BaseModel):
@@ -27,8 +27,8 @@ class Layer(BaseModel):
     image_path: Path | None = None
     time_variants: dict[TimeOfDay, Path] = Field(default_factory=dict)
     season_variants: dict[Season, Path] = Field(default_factory=dict)
-    opacity: float = 1.0
-    parallax_factor: float = 0.0
+    opacity: float = Field(default=1.0, ge=0.0, le=1.0)
+    parallax_factor: float = Field(default=0.0, ge=-1.0, le=1.0)
 
 
 class Zone(BaseModel):
