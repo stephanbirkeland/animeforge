@@ -47,7 +47,9 @@ class FalBackend:
             logger.warning("fal.ai API key not configured (set FAL_KEY or config.fal.api_key)")
             return False
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(
+                timeout=min(10.0, self._settings.request_timeout),
+            ) as client:
                 resp = await client.get(
                     "https://queue.fal.run/fal-ai/pony-v7",
                     headers={"Authorization": f"Key {self._api_key}"},
@@ -177,7 +179,7 @@ class FalBackend:
             return []
 
         downloaded: list[Path] = []
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=self._settings.request_timeout) as client:
             for i, img_data in enumerate(images_data):
                 url = img_data.get("url", "")
                 if not url:

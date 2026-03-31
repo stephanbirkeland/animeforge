@@ -66,6 +66,9 @@ class FalSettings(BaseSettings):
     default_model: str = "fal-ai/pony-v7"
     controlnet_model: str = "fal-ai/sdxl-controlnet-union"
     ip_adapter_model: str = "fal-ai/ip-adapter-face-id"
+    request_timeout: float = Field(
+        default=60.0, gt=0, description="HTTP timeout in seconds for fal.ai API calls"
+    )
 
 
 class AppConfig(BaseSettings):
