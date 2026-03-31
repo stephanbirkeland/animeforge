@@ -101,6 +101,12 @@ class SettingsScreen(Screen[None]):
                     placeholder="fal-ai/ip-adapter-face-id",
                     id="fal-ipadapter-model",
                 )
+                yield Label("Request Timeout (seconds)")
+                yield Input(
+                    value=str(config.fal.request_timeout),
+                    placeholder="60.0",
+                    id="fal-request-timeout",
+                )
 
             # ── Model Paths ──────────────────────────────────
             with Vertical(classes="card"):
@@ -248,6 +254,13 @@ class SettingsScreen(Screen[None]):
             self._set_status("Invalid Port — must be an integer.")
             return
         try:
+            fal_request_timeout = float(
+                self.query_one("#fal-request-timeout", Input).value or 60.0
+            )
+        except ValueError:
+            self._set_status("Invalid Request Timeout — must be a number.")
+            return
+        try:
             gen_width = int(self.query_one("#gen-width", Input).value or 1024)
         except ValueError:
             self._set_status("Invalid Width — must be an integer.")
@@ -295,6 +308,7 @@ class SettingsScreen(Screen[None]):
                 "default_model": self.query_one("#fal-default-model", Input).value,
                 "controlnet_model": self.query_one("#fal-controlnet-model", Input).value,
                 "ip_adapter_model": self.query_one("#fal-ipadapter-model", Input).value,
+                "request_timeout": fal_request_timeout,
             },
             "models": {
                 "checkpoint": self.query_one("#model-checkpoint", Input).value,
@@ -358,6 +372,7 @@ class SettingsScreen(Screen[None]):
         self.query_one("#fal-default-model", Input).value = defaults.fal.default_model
         self.query_one("#fal-controlnet-model", Input).value = defaults.fal.controlnet_model
         self.query_one("#fal-ipadapter-model", Input).value = defaults.fal.ip_adapter_model
+        self.query_one("#fal-request-timeout", Input).value = str(defaults.fal.request_timeout)
         self.query_one("#model-checkpoint", Input).value = defaults.models.checkpoint
         self.query_one("#model-openpose", Input).value = defaults.models.controlnet_openpose
         self.query_one("#model-depth", Input).value = defaults.models.controlnet_depth

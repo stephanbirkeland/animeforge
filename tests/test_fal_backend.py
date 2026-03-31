@@ -173,6 +173,29 @@ def test_fal_settings_defaults() -> None:
     assert settings.default_model == "fal-ai/pony-v7"
     assert settings.controlnet_model == "fal-ai/sdxl-controlnet-union"
     assert settings.ip_adapter_model == "fal-ai/ip-adapter-face-id"
+    assert settings.request_timeout == 60.0
+
+
+def test_fal_settings_request_timeout_valid() -> None:
+    """Custom request_timeout is accepted."""
+    settings = FalSettings(request_timeout=120.0)
+    assert settings.request_timeout == 120.0
+
+
+def test_fal_settings_request_timeout_zero_raises() -> None:
+    """request_timeout=0 violates gt=0 constraint."""
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        FalSettings(request_timeout=0)
+
+
+def test_fal_settings_request_timeout_negative_raises() -> None:
+    """Negative request_timeout violates gt=0 constraint."""
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        FalSettings(request_timeout=-1.0)
 
 
 def test_app_config_has_fal_settings() -> None:
