@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import fal_client
 import httpx
@@ -70,7 +70,7 @@ class FalBackend:
         if progress_callback:
             progress_callback(1, 10, f"Submitting to {endpoint}")
 
-        def on_queue_update(update: Any) -> None:
+        def on_queue_update(update: object) -> None:
             if progress_callback is None:
                 return
             status_type = getattr(update, "status", "")
@@ -121,9 +121,9 @@ class FalBackend:
             return self._settings.ip_adapter_model
         return self._settings.default_model
 
-    async def _build_params(self, request: GenerationRequest) -> dict[str, Any]:
+    async def _build_params(self, request: GenerationRequest) -> dict[str, object]:
         """Map GenerationRequest fields to fal.ai API parameters."""
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "prompt": request.prompt,
             "image_size": {
                 "width": request.width,
@@ -167,12 +167,12 @@ class FalBackend:
 
     async def _download_images(
         self,
-        result: dict[str, Any],
+        result: dict[str, object],
         request: GenerationRequest,
     ) -> list[Path]:
         """Download generated images from fal CDN to local output directory."""
         images_data = result.get("images", [])
-        if not images_data:
+        if not isinstance(images_data, list) or not images_data:
             logger.warning("fal.ai returned no images")
             return []
 
