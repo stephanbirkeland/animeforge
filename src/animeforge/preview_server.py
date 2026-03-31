@@ -9,7 +9,6 @@ import json
 import threading
 import webbrowser
 from pathlib import Path
-from typing import Any
 
 import websockets
 import websockets.asyncio.server
@@ -35,7 +34,7 @@ class _HTMLHandler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         pass  # suppress console noise
 
 
@@ -46,10 +45,10 @@ class PreviewServer:
         self.http_port = http_port
         self.ws_port = ws_port
         self._clients: set[websockets.asyncio.server.ServerConnection] = set()
-        self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        self._queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
         self._http_server: http.server.HTTPServer | None = None
 
-    async def broadcast(self, message: dict[str, Any]) -> None:
+    async def broadcast(self, message: dict[str, object]) -> None:
         """Send a JSON message to all connected WebSocket clients."""
         data = json.dumps(message)
         websockets.broadcast(self._clients, data)
