@@ -406,8 +406,8 @@ async def test_download_images_skips_empty_url(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_download_images_raises_on_http_error(tmp_path: Path) -> None:
-    """HTTP errors during download propagate as exceptions."""
+async def test_download_images_skips_on_http_error(tmp_path: Path) -> None:
+    """HTTP errors on a single image are logged and skipped, not raised."""
     settings = FalSettings()
     backend = FalBackend(settings, output_dir=tmp_path)
     request = GenerationRequest(prompt="test")
@@ -422,8 +422,87 @@ async def test_download_images_raises_on_http_error(tmp_path: Path) -> None:
     result_data = {"images": [{"url": "https://cdn.fal.ai/missing.png"}]}
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
-        with pytest.raises(httpx.HTTPStatusError):
-            await backend._download_images(result_data, request)
+        images = await backend._download_images(result_data, request)
+
+    assert images == []
+
+
+@pytest.mark.asyncio
+async def test_download_images_partial_http_failure(tmp_path: Path) -> None:
+    """A failing image URL does not abort remaining downloads."""
+    settings = FalSettings()
+    backend = FalBackend(settings, output_dir=tmp_path)
+    request = GenerationRequest(prompt="test", width=512, height=512, seed=7)
+
+    ok_resp = AsyncMock()
+    ok_resp.content = b"PNG_DATA"
+    ok_resp.raise_for_status = MagicMock()
+
+    err_resp = MagicMock()
+    err_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "Service Unavailable",
+        request=httpx.Request("GET", "https://cdn.fal.ai/img1.png"),
+        response=httpx.Response(503),
+    )
+
+    result_data = {
+        "images": [
+            {"url": "https://cdn.fal.ai/img0.png"},
+            {"url": "https://cdn.fal.ai/img1.png"},
+            {"url": "https://cdn.fal.ai/img2.png"},
+        ],
+        "seed": 7,
+    }
+
+    with patch(
+        "httpx.AsyncClient.get",
+        new_callable=AsyncMock,
+        side_effect=[ok_resp, err_resp, ok_resp],
+    ):
+        images = await backend._download_images(result_data, request)
+
+    assert len(images) == 2
+    assert "fal_7_512x512_0.png" in images[0].name
+    assert "fal_7_512x512_2.png" in images[1].name
+
+
+@pytest.mark.asyncio
+async def test_download_images_skips_on_oserror(tmp_path: Path) -> None:
+    """OSError on write_bytes is caught and the image is skipped."""
+    settings = FalSettings()
+    backend = FalBackend(settings, output_dir=tmp_path)
+    request = GenerationRequest(prompt="test", width=512, height=512, seed=5)
+
+    mock_resp = AsyncMock()
+    mock_resp.content = b"IMG"
+    mock_resp.raise_for_status = MagicMock()
+
+    result_data = {
+        "images": [
+            {"url": "https://cdn.fal.ai/img0.png"},
+            {"url": "https://cdn.fal.ai/img1.png"},
+        ],
+        "seed": 5,
+    }
+
+    call_count = 0
+    original_write_bytes = Path.write_bytes
+
+    def patched_write_bytes(self: Path, data: bytes) -> int:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise OSError("disk full")
+        return original_write_bytes(self, data)
+
+    with (
+        patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp),
+        patch.object(Path, "write_bytes", patched_write_bytes),
+    ):
+        images = await backend._download_images(result_data, request)
+
+    assert len(images) == 1
+    assert "fal_5_512x512_1.png" in images[0].name
 
 
 @pytest.mark.asyncio

@@ -183,14 +183,19 @@ class FalBackend:
                 if not url:
                     continue
 
-                resp = await client.get(url)
-                resp.raise_for_status()
+                try:
+                    resp = await client.get(url)
+                    resp.raise_for_status()
 
-                seed = result.get("seed", request.seed)
-                filename = f"fal_{seed}_{request.width}x{request.height}_{i}.png"
-                out_path = self.output_dir / filename
-                out_path.write_bytes(resp.content)
-                downloaded.append(out_path)
-                logger.info("Downloaded: %s", out_path)
+                    seed = result.get("seed", request.seed)
+                    filename = f"fal_{seed}_{request.width}x{request.height}_{i}.png"
+                    out_path = self.output_dir / filename
+                    out_path.write_bytes(resp.content)
+                    downloaded.append(out_path)
+                    logger.info("Downloaded: %s", out_path)
+                except httpx.HTTPStatusError as exc:
+                    logger.warning("Failed to download image %d from fal CDN: %s", i, exc)
+                except OSError as exc:
+                    logger.warning("Failed to write image %d to disk: %s", i, exc)
 
         return downloaded
