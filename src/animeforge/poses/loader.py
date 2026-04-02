@@ -7,6 +7,8 @@ import logging
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from animeforge.models.pose import PoseSequence
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,9 @@ def load(name: str) -> PoseSequence:
     ------
     FileNotFoundError
         If no matching JSON file exists in the poses directory.
+    ValueError
+        If the JSON is structurally invalid for PoseSequence
+        (missing fields, wrong types, etc.).
     """
     if not name.endswith(".json"):
         name = f"{name}.json"
@@ -49,6 +54,10 @@ def load(name: str) -> PoseSequence:
         raise FileNotFoundError(msg)
 
     data = json.loads(path.read_text(encoding="utf-8"))
-    seq = PoseSequence.model_validate(data)
+    try:
+        seq = PoseSequence.model_validate(data)
+    except ValidationError as exc:
+        msg = f"Invalid pose sequence data in '{path}': {exc}"
+        raise ValueError(msg) from exc
     logger.debug("Loaded pose sequence '%s' (%d frames)", seq.name, len(seq.frames))
     return seq
