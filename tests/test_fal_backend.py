@@ -421,9 +421,11 @@ async def test_download_images_raises_on_http_error(tmp_path: Path) -> None:
 
     result_data = {"images": [{"url": "https://cdn.fal.ai/missing.png"}]}
 
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp):
-        with pytest.raises(httpx.HTTPStatusError):
-            await backend._download_images(result_data, request)
+    with (
+        patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_resp),
+        pytest.raises(httpx.HTTPStatusError),
+    ):
+        await backend._download_images(result_data, request)
 
 
 @pytest.mark.asyncio
@@ -551,3 +553,58 @@ async def test_generate_non_int_seed(tmp_path: Path) -> None:
         result = await backend.generate(GenerationRequest(prompt="test"))
 
     assert result.seed == -1
+
+
+# ── asyncio.to_thread wrapping ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_subscribe_called_via_asyncio_to_thread(tmp_path: Path) -> None:
+    """generate() wraps fal_client.subscribe with asyncio.to_thread."""
+    settings = FalSettings()
+    backend = FalBackend(settings, output_dir=tmp_path)
+
+    fake_result = {
+        "images": [{"url": "https://cdn.fal.ai/out.png"}],
+        "seed": 7,
+    }
+
+    with (
+        patch(
+            "animeforge.backend.fal_backend.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value=fake_result,
+        ) as mock_to_thread,
+        patch.object(
+            backend,
+            "_download_images",
+            new_callable=AsyncMock,
+            return_value=[tmp_path / "img.png"],
+        ),
+    ):
+        await backend.generate(GenerationRequest(prompt="test"))
+
+    mock_to_thread.assert_called_once()
+    import fal_client as _fal_client
+
+    assert mock_to_thread.call_args[0][0] is _fal_client.subscribe
+
+
+@pytest.mark.asyncio
+async def test_upload_file_called_via_asyncio_to_thread() -> None:
+    """_prepare_image_url() wraps fal_client.upload_file with asyncio.to_thread."""
+    settings = FalSettings()
+    backend = FalBackend(settings)
+
+    with patch(
+        "animeforge.backend.fal_backend.asyncio.to_thread",
+        new_callable=AsyncMock,
+        return_value="https://cdn.fal.ai/uploaded.png",
+    ) as mock_to_thread:
+        url = await backend._prepare_image_url(Path("/tmp/test.png"))
+
+    assert url == "https://cdn.fal.ai/uploaded.png"
+    mock_to_thread.assert_called_once()
+    import fal_client as _fal_client
+
+    assert mock_to_thread.call_args[0][0] is _fal_client.upload_file
