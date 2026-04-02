@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -82,7 +83,8 @@ class FalBackend:
                 last_log = logs[-1].get("message", "Generating...") if logs else "Generating..."
                 progress_callback(step, 10, last_log)
 
-        result = fal_client.subscribe(
+        result = await asyncio.to_thread(
+            fal_client.subscribe,
             endpoint,
             arguments=params,
             with_logs=True,
@@ -162,7 +164,7 @@ class FalBackend:
 
     async def _prepare_image_url(self, image_path: Path) -> str:
         """Upload a local image to fal CDN and return the URL."""
-        url: str = fal_client.upload_file(image_path)
+        url: str = await asyncio.to_thread(fal_client.upload_file, image_path)
         return url
 
     async def _download_images(
