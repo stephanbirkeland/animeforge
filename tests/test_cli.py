@@ -408,9 +408,9 @@ def test_generate_mock_backend_produces_output(tmp_path):
                 "--output",
                 str(output_dir),
                 "--width",
-                "32",
+                "64",
                 "--height",
-                "32",
+                "64",
             ],
         )
     assert result.exit_code == 0
