@@ -4,22 +4,23 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, TypeAlias, runtime_checkable
+from pathlib import Path  # noqa: TC003 - Pydantic needs Path at runtime
+from typing import Protocol, TypeAlias, runtime_checkable
 
-if TYPE_CHECKING:
-    from pathlib import Path
+from pydantic import BaseModel, ConfigDict, Field
 
 
-@dataclass
-class GenerationRequest:
+class GenerationRequest(BaseModel):
     """A request to generate an image."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     prompt: str
     negative_prompt: str = ""
-    width: int = 1024
-    height: int = 1024
-    steps: int = 30
-    cfg_scale: float = 7.0
+    width: int = Field(default=1024, ge=64, le=4096)
+    height: int = Field(default=1024, ge=64, le=4096)
+    steps: int = Field(default=30, ge=1, le=150)
+    cfg_scale: float = Field(default=7.0, ge=1.0, le=30.0)
     sampler: str = "euler_ancestral"
     scheduler: str = "normal"
     seed: int = -1
@@ -27,16 +28,16 @@ class GenerationRequest:
     # ControlNet
     controlnet_image: Path | None = None
     controlnet_model: str | None = None
-    controlnet_strength: float = 1.0
+    controlnet_strength: float = Field(default=1.0, ge=0.0, le=1.0)
     # IP-Adapter
     ip_adapter_image: Path | None = None
     ip_adapter_model: str | None = None
-    ip_adapter_weight: float = 0.75
+    ip_adapter_weight: float = Field(default=0.75, ge=0.0, le=1.0)
     # img2img
     init_image: Path | None = None
-    denoise_strength: float = 0.7
+    denoise_strength: float = Field(default=0.7, ge=0.0, le=1.0)
     # Extra
-    extra_params: dict[str, object] = field(default_factory=dict)
+    extra_params: dict[str, object] = Field(default_factory=dict)
 
 
 @dataclass
