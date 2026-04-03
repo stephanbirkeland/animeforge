@@ -157,6 +157,17 @@ def test_export_config():
     assert TimeOfDay.NIGHT in config.times
 
 
+@pytest.mark.parametrize("fmt", ["webp", "png", "jpg", "jpeg"])
+def test_export_config_image_format_valid(fmt: str) -> None:
+    config = ExportConfig(image_format=fmt)
+    assert config.image_format == fmt
+
+
+def test_export_config_image_format_invalid() -> None:
+    with pytest.raises(ValidationError):
+        ExportConfig(image_format="bmp")
+
+
 def test_scene_json_serialization():
     scene = Scene(
         name="test",

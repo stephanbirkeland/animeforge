@@ -399,9 +399,10 @@ def export_project(
         for time, src in layer.time_variants.items():
             if src.exists():
                 ext = config.image_format.lower()
+                pillow_fmt = "jpeg" if ext == "jpg" else ext
                 dest_name = f"bg_{layer.id}_{time.value}.{ext}"
                 dest = bg_dir / dest_name
-                optimize_image(src, dest, quality=config.image_quality, img_format=ext)
+                optimize_image(src, dest, quality=config.image_quality, img_format=pillow_fmt)
                 layer_images[time.value] = f"backgrounds/{dest_name}"
                 bg_copied += 1
             else:
@@ -424,6 +425,7 @@ def export_project(
         for anim in char.animations:
             if anim.sprite_sheet and anim.sprite_sheet.exists():
                 ext = config.image_format.lower()
+                pillow_fmt = "jpeg" if ext == "jpg" else ext
                 dest_name = f"{char.name}_{anim.id}.{ext}"
                 dest = char_dir / dest_name
                 try:
@@ -431,7 +433,7 @@ def export_project(
                         anim.sprite_sheet,
                         dest,
                         quality=config.image_quality,
-                        img_format=ext,
+                        img_format=pillow_fmt,
                     )
                     # Determine frame dimensions from the sprite sheet image.
                     sheet_img = Image.open(anim.sprite_sheet)
@@ -465,13 +467,14 @@ def export_project(
     for effect in scene.effects:
         if effect.sprite_sheet and effect.sprite_sheet.exists():
             ext = config.image_format.lower()
+            pillow_fmt = "jpeg" if ext == "jpg" else ext
             dest_name = f"{effect.id}.{ext}"
             dest = fx_dir / dest_name
             optimize_image(
                 effect.sprite_sheet,
                 dest,
                 quality=config.image_quality,
-                img_format=ext,
+                img_format=pillow_fmt,
             )
             entry: dict[str, object] = {
                 "id": effect.id,
