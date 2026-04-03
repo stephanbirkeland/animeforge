@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AnimationDef(BaseModel):
@@ -26,8 +26,16 @@ class StateTransition(BaseModel):
 
     from_state: str
     to_state: str
-    duration_ms: int = 500
+    duration_ms: int = Field(default=500, ge=0)
     auto: bool = False
+
+    @model_validator(mode="after")
+    def states_must_differ(self) -> StateTransition:
+        if self.from_state == self.to_state:
+            raise ValueError(
+                f"from_state and to_state must differ, got {self.from_state!r} for both"
+            )
+        return self
 
 
 class Character(BaseModel):
