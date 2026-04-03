@@ -154,7 +154,7 @@ class ExportScreen(Screen[None]):
         return ExportConfig(
             output_dir=Path(self.query_one("#export-dir", Input).value),
             image_quality=image_quality,
-            image_format=str(image_format),
+            image_format=str(image_format),  # type: ignore[arg-type]
             include_retina=self.query_one("#export-retina", Checkbox).value,
             include_preview=self.query_one("#export-preview", Checkbox).value,
             times=times,

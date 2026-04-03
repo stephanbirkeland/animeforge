@@ -15,7 +15,7 @@ class ExportConfig(BaseModel):
 
     output_dir: Path = Path("output")
     image_quality: int = Field(default=85, ge=1, le=100)
-    image_format: str = "webp"
+    image_format: Literal["webp", "png", "jpg", "jpeg"] = "webp"
     include_retina: bool = False
     include_preview: bool = True
     times: list[TimeOfDay] = Field(default_factory=lambda: list(TimeOfDay))
