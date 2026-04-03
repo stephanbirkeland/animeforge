@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
 from textual.app import App, ComposeResult
 from textual.widgets import DataTable, Static
 
@@ -382,20 +384,9 @@ class TestStateGraphRenderNodes:
             assert "=>" in rendered
             assert "[auto]" in rendered
 
-    async def test_self_loop_transition(self) -> None:
-        anims = [_make_anim("loop", "Looper")]
-        trans = [StateTransition(from_state="loop", to_state="loop", duration_ms=200)]
-        app = StateGraphApp(animations=anims, transitions=trans)
-        async with app.run_test():
-            canvas = app.query_one("#sg-canvas", Static)
-            canvas_text = str(canvas.renderable)
-            # Self-loop produces "o" in the edge row
-            assert "o" in canvas_text
-
-            legend = app.query_one("#sg-legend", Static)
-            legend_text = str(legend.renderable)
-            assert "loop -> loop" in legend_text
-            assert "200ms" in legend_text
+    async def test_self_loop_transition_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="from_state and to_state must differ"):
+            StateTransition(from_state="loop", to_state="loop", duration_ms=200)
 
     async def test_transition_to_unknown_state_skipped(self) -> None:
         anims = [_make_anim("only", "Only")]

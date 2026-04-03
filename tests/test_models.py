@@ -373,6 +373,28 @@ class TestCreateDefaultCharacter:
             assert t.duration_ms > 0
 
 
+class TestStateTransitionValidator:
+    """Tests for StateTransition self-loop rejection and field constraints."""
+
+    def test_self_loop_raises(self):
+        with pytest.raises(ValidationError, match="from_state and to_state must differ"):
+            StateTransition(from_state="idle", to_state="idle", duration_ms=300)
+
+    def test_valid_transition(self):
+        t = StateTransition(from_state="idle", to_state="typing", duration_ms=400)
+        assert t.from_state == "idle"
+        assert t.to_state == "typing"
+        assert t.duration_ms == 400
+
+    def test_negative_duration_raises(self):
+        with pytest.raises(ValidationError):
+            StateTransition(from_state="idle", to_state="typing", duration_ms=-1)
+
+    def test_self_loop_error_message_includes_state(self):
+        with pytest.raises(ValidationError, match="walking"):
+            StateTransition(from_state="walking", to_state="walking", duration_ms=100)
+
+
 # ---------------------------------------------------------------------------
 # Project.load error path tests
 # ---------------------------------------------------------------------------
