@@ -48,3 +48,78 @@ def test_comfyui_settings_port_rejected(bad: int) -> None:
 def test_comfyui_settings_port_accepted(good: int) -> None:
     settings = ComfyUISettings(port=good)
     assert settings.port == good
+
+
+# --- GenerationSettings field constraint tests ---
+
+
+@pytest.mark.parametrize("bad", [0, 63, 4097, -100])
+def test_generation_width_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        GenerationSettings(width=bad)
+
+
+@pytest.mark.parametrize("good", [64, 512, 1024, 4096])
+def test_generation_width_accepted(good: int) -> None:
+    s = GenerationSettings(width=good)
+    assert s.width == good
+
+
+@pytest.mark.parametrize("bad", [0, 63, 4097, -100])
+def test_generation_height_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        GenerationSettings(height=bad)
+
+
+@pytest.mark.parametrize("good", [64, 512, 1024, 4096])
+def test_generation_height_accepted(good: int) -> None:
+    s = GenerationSettings(height=good)
+    assert s.height == good
+
+
+@pytest.mark.parametrize("bad", [0, -1, 151, 200])
+def test_generation_steps_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        GenerationSettings(steps=bad)
+
+
+@pytest.mark.parametrize("good", [1, 30, 150])
+def test_generation_steps_accepted(good: int) -> None:
+    s = GenerationSettings(steps=good)
+    assert s.steps == good
+
+
+@pytest.mark.parametrize("bad", [0.0, 0.9, 30.1, -1.0])
+def test_generation_cfg_scale_rejected(bad: float) -> None:
+    with pytest.raises(ValidationError):
+        GenerationSettings(cfg_scale=bad)
+
+
+@pytest.mark.parametrize("good", [1.0, 7.0, 30.0])
+def test_generation_cfg_scale_accepted(good: float) -> None:
+    s = GenerationSettings(cfg_scale=good)
+    assert s.cfg_scale == good
+
+
+@pytest.mark.parametrize("bad", [0, -1, 17, 100])
+def test_generation_batch_size_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        GenerationSettings(batch_size=bad)
+
+
+@pytest.mark.parametrize("good", [1, 8, 16])
+def test_generation_batch_size_accepted(good: int) -> None:
+    s = GenerationSettings(batch_size=good)
+    assert s.batch_size == good
+
+
+@pytest.mark.parametrize("bad", [-2, -100])
+def test_generation_seed_rejected(bad: int) -> None:
+    with pytest.raises(ValidationError):
+        GenerationSettings(seed=bad)
+
+
+@pytest.mark.parametrize("good", [-1, 0, 42, 999999])
+def test_generation_seed_accepted(good: int) -> None:
+    s = GenerationSettings(seed=good)
+    assert s.seed == good

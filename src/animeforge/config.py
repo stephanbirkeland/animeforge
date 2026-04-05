@@ -49,14 +49,14 @@ class ModelSettings(BaseSettings):
 class GenerationSettings(BaseSettings):
     """Default generation parameters."""
 
-    width: int = 1024
-    height: int = 1024
-    steps: int = 30
-    cfg_scale: float = 7.0
+    width: int = Field(default=1024, ge=64, le=4096)
+    height: int = Field(default=1024, ge=64, le=4096)
+    steps: int = Field(default=30, ge=1, le=150)
+    cfg_scale: float = Field(default=7.0, ge=1.0, le=30.0)
     sampler: str = "euler_ancestral"
     scheduler: str = "normal"
-    batch_size: int = 1
-    seed: int = -1
+    batch_size: int = Field(default=1, ge=1, le=16)
+    seed: int = Field(default=-1, ge=-1)
 
 
 class FalSettings(BaseSettings):
