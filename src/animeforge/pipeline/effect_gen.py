@@ -23,6 +23,16 @@ class _Leaf(TypedDict):
     spin_rate: float
 
 
+def _validate_sprite_params(frame_count: int, frame_width: int, frame_height: int) -> None:
+    """Validate sprite generation parameters before any PIL calls."""
+    if not (1 <= frame_count <= 64):
+        raise ValueError(f"frame_count must be 1\u201364, got {frame_count}")
+    if not (64 <= frame_width <= 4096):
+        raise ValueError(f"frame_width must be 64\u20134096, got {frame_width}")
+    if not (64 <= frame_height <= 4096):
+        raise ValueError(f"frame_height must be 64\u20134096, got {frame_height}")
+
+
 def generate_rain_sprites(
     output_dir: Path,
     *,
@@ -39,6 +49,7 @@ def generate_rain_sprites(
 
     Returns the path to the saved sprite strip PNG.
     """
+    _validate_sprite_params(frame_count, frame_width, frame_height)
     output_dir.mkdir(parents=True, exist_ok=True)
     # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
     rng = random.Random(seed)  # noqa: S311
@@ -88,6 +99,7 @@ def generate_snow_sprites(
 
     Returns the path to the saved sprite strip PNG.
     """
+    _validate_sprite_params(frame_count, frame_width, frame_height)
     output_dir.mkdir(parents=True, exist_ok=True)
     # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
     rng = random.Random(seed)  # noqa: S311
@@ -143,6 +155,7 @@ def generate_leaf_sprites(
 
     Returns the path to the saved sprite strip PNG.
     """
+    _validate_sprite_params(frame_count, frame_width, frame_height)
     output_dir.mkdir(parents=True, exist_ok=True)
     # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
     rng = random.Random(seed)  # noqa: S311
@@ -218,6 +231,7 @@ def generate_sakura_sprites(
 
     Returns the path to the saved sprite strip PNG.
     """
+    _validate_sprite_params(frame_count, frame_width, frame_height)
     output_dir.mkdir(parents=True, exist_ok=True)
     # Seeded RNG for reproducible procedural sprite generation — not cryptographic use.
     rng = random.Random(seed)  # noqa: S311
