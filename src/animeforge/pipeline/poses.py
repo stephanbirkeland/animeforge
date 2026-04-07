@@ -155,6 +155,9 @@ def _lerp(a: float, b: float, t: float) -> float:
 
 def _lerp_point(a: list[float], b: list[float], t: float) -> list[float]:
     """Interpolate two [x, y, confidence] points."""
+    if len(a) < 3 or len(b) < 3:  # noqa: PLR2004
+        msg = f"Keypoint must have 3 elements [x, y, conf], got lengths {len(a)} and {len(b)}"
+        raise ValueError(msg)
     return [_lerp(a[0], b[0], t), _lerp(a[1], b[1], t), _lerp(a[2], b[2], t)]
 
 
