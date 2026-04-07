@@ -149,3 +149,20 @@ def test_optimize_returns_output_path(tmp_path):
     result = optimize_image(src, dst, img_format="WEBP")
     assert result == dst
     assert dst.exists()
+
+
+@pytest.mark.parametrize("bad_quality", [0, -1, 96, 200])
+def test_optimize_image_invalid_quality(tmp_path: Path, bad_quality: int) -> None:
+    """quality outside 1-95 raises ValueError."""
+    src = tmp_path / "src.png"
+    Image.new("RGB", (4, 4)).save(src)
+    with pytest.raises(ValueError, match="quality"):
+        optimize_image(src, tmp_path / "out.webp", quality=bad_quality)
+
+
+def test_optimize_image_unsupported_format(tmp_path: Path) -> None:
+    """Unsupported img_format raises ValueError."""
+    src = tmp_path / "src.png"
+    Image.new("RGB", (4, 4)).save(src)
+    with pytest.raises(ValueError, match="img_format"):
+        optimize_image(src, tmp_path / "out.bmp", img_format="bmp")
