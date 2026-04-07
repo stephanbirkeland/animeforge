@@ -33,9 +33,21 @@ class Project(BaseModel):
         if save_path is None:
             msg = "No save path specified and no project_dir set"
             raise ValueError(msg)
-        save_path = save_path if save_path.suffix == ".json" else save_path / "project.json"
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        save_path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
+        if save_path.is_dir() or not save_path.suffix:
+            save_path = save_path / "project.json"
+        elif save_path.suffix != ".json":
+            msg = f"Project path must be a .json file or a directory, got: {save_path}"
+            raise ValueError(msg)
+        try:
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            msg = f"Cannot create project directory {save_path.parent}: {exc}"
+            raise OSError(msg) from exc
+        try:
+            save_path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
+        except OSError as exc:
+            msg = f"Cannot write project file {save_path}: {exc}"
+            raise OSError(msg) from exc
         return save_path
 
     @classmethod

@@ -393,3 +393,37 @@ class TestProjectLoadErrorPaths:
             empty_file.write_text("", encoding="utf-8")
             with pytest.raises(ProjectLoadError, match="project file contains invalid JSON"):
                 Project.load(empty_file)
+
+
+# ---------------------------------------------------------------------------
+# Project.save hardening tests
+# ---------------------------------------------------------------------------
+
+
+class TestProjectSaveHardening:
+    """Tests for Project.save() path validation and I/O error handling."""
+
+    def test_save_non_json_extension_raises(self, tmp_path: Path) -> None:
+        project = Project(name="x", scene=Scene(name="s"))
+        with pytest.raises(ValueError, match=".json file or a directory"):
+            project.save(tmp_path / "project.bak")
+
+    def test_save_to_directory_creates_project_json(self, tmp_path: Path) -> None:
+        project = Project(name="x", scene=Scene(name="s"))
+        result = project.save(tmp_path)
+        assert result == tmp_path / "project.json"
+        assert result.exists()
+
+    def test_save_to_suffixless_path_creates_project_json(self, tmp_path: Path) -> None:
+        project = Project(name="x", scene=Scene(name="s"))
+        result = project.save(tmp_path / "my_scene")
+        assert result == tmp_path / "my_scene" / "project.json"
+        assert result.exists()
+
+    def test_save_mkdir_oserror_raises_with_context(self, tmp_path: Path) -> None:
+        project = Project(name="x", scene=Scene(name="s"))
+        # Make a file where a directory would need to be created
+        blocker = tmp_path / "blocked"
+        blocker.write_text("not a dir", encoding="utf-8")
+        with pytest.raises(OSError, match="Cannot create project directory"):
+            project.save(blocker / "project.json")
