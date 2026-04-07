@@ -180,6 +180,13 @@ def test_interpolate_poses_single_source_frame():
         assert frame_kp.nose == pytest.approx([0.3, 0.2, 1.0])
 
 
+def test_lerp_point_raises_on_short_arrays() -> None:
+    from animeforge.pipeline.poses import _lerp_point
+
+    with pytest.raises(ValueError, match="3 elements"):
+        _lerp_point([0.5, 0.5], [0.6, 0.6], 0.5)  # missing confidence
+
+
 def test_render_pose_image_creates_file(tmp_path: Path):
     from PIL import Image as PILImage
 
