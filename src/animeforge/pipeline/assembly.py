@@ -98,6 +98,9 @@ def assemble_sprite_sheet(
     return output
 
 
+_SUPPORTED_FORMATS: frozenset[str] = frozenset({"PNG", "JPEG", "WEBP"})
+
+
 def optimize_image(
     input_path: Path,
     output_path: Path,
@@ -117,7 +120,7 @@ def optimize_image(
         Destination path.  The suffix is **not** auto-changed; caller should
         ensure it matches *img_format*.
     quality:
-        Compression quality (1-100).  Only meaningful for lossy formats.
+        Compression quality (1-95).  Only meaningful for lossy formats.
     img_format:
         Pillow format string, e.g. ``"WEBP"``, ``"PNG"``, ``"JPEG"``.
 
@@ -126,19 +129,27 @@ def optimize_image(
     Path
         The *output_path*, for chaining convenience.
     """
+    if not 1 <= quality <= 95:  # noqa: PLR2004
+        msg = f"quality must be between 1 and 95, got {quality}"
+        raise ValueError(msg)
+    normalized = img_format.upper()
+    if normalized not in _SUPPORTED_FORMATS:
+        msg = f"img_format must be one of {sorted(_SUPPORTED_FORMATS)}, got {img_format!r}"
+        raise ValueError(msg)
+
     img: Image.Image = Image.open(input_path)
 
     # Preserve alpha for formats that support it.
-    img = img.convert("RGB") if img_format.upper() in ("JPEG", "JPG") else img.convert("RGBA")
+    img = img.convert("RGB") if normalized in ("JPEG", "JPG") else img.convert("RGBA")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     save_kwargs: dict[str, Any] = {"quality": quality}
-    if img_format.upper() == "PNG":
+    if normalized == "PNG":
         save_kwargs = {"optimize": True}
-    elif img_format.upper() == "WEBP":
+    elif normalized == "WEBP":
         save_kwargs["method"] = 6  # best compression
 
-    img.save(output_path, img_format.upper(), **save_kwargs)
+    img.save(output_path, normalized, **save_kwargs)
     logger.info("Optimized %s -> %s (%s q=%d)", input_path, output_path, img_format, quality)
     return output_path
