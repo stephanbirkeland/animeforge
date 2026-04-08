@@ -956,3 +956,181 @@ async def test_scene_editor_edit_selected_zone() -> None:
         assert screen.query_one("#zone-name", Input).value == "Desk Area"
         assert screen.query_one("#zone-x", Input).value == "100"
         assert screen.query_one("#zone-y", Input).value == "200"
+
+
+# ---------------------------------------------------------------------------
+# 12. Settings screen bounds validation
+# ---------------------------------------------------------------------------
+
+
+async def test_settings_save_rejects_port_zero() -> None:
+    """Port=0 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#comfy-port", Input).value = "0"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid Port" in str(label.renderable)
+
+
+async def test_settings_save_rejects_port_above_65535() -> None:
+    """Port=99999 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#comfy-port", Input).value = "99999"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid Port" in str(label.renderable)
+
+
+async def test_settings_save_rejects_width_zero() -> None:
+    """Width=0 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#gen-width", Input).value = "0"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid Width" in str(label.renderable)
+
+
+async def test_settings_save_rejects_height_negative() -> None:
+    """Height=-1 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#gen-height", Input).value = "-1"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid Height" in str(label.renderable)
+
+
+async def test_settings_save_rejects_steps_zero() -> None:
+    """Steps=0 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#gen-steps", Input).value = "0"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid Steps" in str(label.renderable)
+
+
+async def test_settings_save_rejects_cfg_zero() -> None:
+    """CFG=0.0 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#gen-cfg", Input).value = "0.0"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid CFG Scale" in str(label.renderable)
+
+
+async def test_settings_save_rejects_batch_size_zero() -> None:
+    """Batch size=0 should show a bounds error and not write config."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#gen-batch-size", Input).value = "0"
+
+        with patch("animeforge.screens.settings_screen.tomli_w.dumps") as mock_dumps:
+            screen._save_settings()
+            await pilot.pause()
+            mock_dumps.assert_not_called()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid Batch Size" in str(label.renderable)
+
+
+async def test_settings_save_accepts_valid_values() -> None:
+    """Valid in-range values should not produce an 'Invalid' status."""
+    from unittest.mock import patch
+
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("settings")
+        await pilot.pause()
+
+        screen = pilot.app.screen
+        screen.query_one("#comfy-port", Input).value = "8188"
+        screen.query_one("#gen-width", Input).value = "1024"
+        screen.query_one("#gen-height", Input).value = "1024"
+        screen.query_one("#gen-steps", Input).value = "30"
+        screen.query_one("#gen-cfg", Input).value = "7.0"
+        screen.query_one("#gen-batch-size", Input).value = "1"
+        screen.query_one("#gen-seed", Input).value = "-1"
+
+        with patch("pathlib.Path.write_bytes"):
+            screen._save_settings()
+            await pilot.pause()
+
+        label = screen.query_one("#settings-status", Label)
+        assert "Invalid" not in str(label.renderable)
