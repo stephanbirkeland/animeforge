@@ -7,7 +7,7 @@ import copy
 import pytest
 from jsonschema import ValidationError
 
-from animeforge.pipeline.validation import validate_scene_json
+from animeforge.pipeline.validation import _load_schema, validate_scene_json
 
 # A fully valid scene_data dict matching what export.py produces.
 VALID_SCENE: dict[str, object] = {
@@ -147,6 +147,27 @@ class TestInvalidTypes:
         )
         with pytest.raises(ValidationError, match="minimum"):
             validate_scene_json(data)
+
+
+class TestSchemaCache:
+    def test_schema_loaded_once(self) -> None:
+        """Schema file is read exactly once even across multiple validations."""
+        from unittest.mock import patch
+
+        import animeforge.pipeline.validation as val_mod
+
+        _load_schema.cache_clear()
+        original_text = val_mod._SCHEMA_PATH.read_text(encoding="utf-8")
+        try:
+            with patch(
+                "animeforge.pipeline.validation._SCHEMA_PATH"
+            ) as mock_path:
+                mock_path.read_text.return_value = original_text
+                validate_scene_json(VALID_SCENE)
+                validate_scene_json(VALID_SCENE)
+                assert mock_path.read_text.call_count == 1
+        finally:
+            _load_schema.cache_clear()
 
 
 class TestExportIntegration:
