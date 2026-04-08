@@ -38,6 +38,8 @@ def load(name: str) -> PoseSequence:
     ------
     FileNotFoundError
         If no matching JSON file exists in the poses directory.
+    ValueError
+        If the JSON file contains malformed JSON.
     """
     if not name.endswith(".json"):
         name = f"{name}.json"
@@ -48,7 +50,11 @@ def load(name: str) -> PoseSequence:
         msg = f"Pose sequence not found: {path}"
         raise FileNotFoundError(msg)
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        msg = f"Malformed JSON in pose file '{path}': {exc}"
+        raise ValueError(msg) from exc
     seq = PoseSequence.model_validate(data)
     logger.debug("Loaded pose sequence '%s' (%d frames)", seq.name, len(seq.frames))
     return seq
