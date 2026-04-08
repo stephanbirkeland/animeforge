@@ -247,30 +247,48 @@ class SettingsScreen(Screen[None]):
         except ValueError:
             self._set_status("Invalid Port — must be an integer.")
             return
+        if not (1 <= port <= 65535):
+            self._set_status("Invalid Port — must be between 1 and 65535.")
+            return
         try:
             gen_width = int(self.query_one("#gen-width", Input).value or 1024)
         except ValueError:
             self._set_status("Invalid Width — must be an integer.")
+            return
+        if gen_width < 64:
+            self._set_status("Invalid Width — must be at least 64.")
             return
         try:
             gen_height = int(self.query_one("#gen-height", Input).value or 1024)
         except ValueError:
             self._set_status("Invalid Height — must be an integer.")
             return
+        if gen_height < 64:
+            self._set_status("Invalid Height — must be at least 64.")
+            return
         try:
             gen_steps = int(self.query_one("#gen-steps", Input).value or 30)
         except ValueError:
             self._set_status("Invalid Steps — must be an integer.")
+            return
+        if gen_steps < 1:
+            self._set_status("Invalid Steps — must be at least 1.")
             return
         try:
             gen_cfg = float(self.query_one("#gen-cfg", Input).value or 7.0)
         except ValueError:
             self._set_status("Invalid CFG Scale — must be a number.")
             return
+        if gen_cfg <= 0.0:
+            self._set_status("Invalid CFG Scale — must be greater than 0.")
+            return
         try:
             gen_batch_size = int(self.query_one("#gen-batch-size", Input).value or 1)
         except ValueError:
             self._set_status("Invalid Batch Size — must be an integer.")
+            return
+        if gen_batch_size < 1:
+            self._set_status("Invalid Batch Size — must be at least 1.")
             return
         try:
             gen_seed = int(self.query_one("#gen-seed", Input).value or -1)
