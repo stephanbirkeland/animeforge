@@ -525,6 +525,154 @@ async def test_generate_with_progress_callback(tmp_path: Path) -> None:
     assert callback.call_args_list[-1][0] == (10, 10, "Complete")
 
 
+# ── on_queue_update callback scenarios ──────────────────────────
+
+
+def _make_subscribe_with_update(
+    fake_result: dict[str, object],
+    mock_update: object,
+) -> object:
+    """Return a side_effect for fal_client.subscribe that invokes on_queue_update."""
+
+    def subscribe_side_effect(
+        *args: object,
+        on_queue_update: object = None,
+        **kwargs: object,
+    ) -> dict[str, object]:
+        if on_queue_update is not None and callable(on_queue_update):
+            on_queue_update(mock_update)
+        return fake_result
+
+    return subscribe_side_effect
+
+
+class TestOnQueueUpdate:
+    """Tests for the on_queue_update inner function inside generate()."""
+
+    @pytest.mark.asyncio
+    async def test_in_queue_status(self, tmp_path: Path) -> None:
+        """IN_QUEUE update calls progress_callback with queue position message."""
+        settings = FalSettings()
+        backend = FalBackend(settings, output_dir=tmp_path)
+
+        fake_result: dict[str, object] = {"images": [], "seed": 1}
+        mock_update = MagicMock(status="IN_QUEUE")
+        callback = MagicMock()
+
+        with (
+            patch(
+                "animeforge.backend.fal_backend.fal_client.subscribe",
+                side_effect=_make_subscribe_with_update(fake_result, mock_update),
+            ),
+            patch.object(
+                backend,
+                "_download_images",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+        ):
+            await backend.generate(
+                GenerationRequest(prompt="test"), progress_callback=callback
+            )
+
+        # on_queue_update should have called callback(2, 10, "Queued...")
+        assert (2, 10, "Queued...") in [c.args for c in callback.call_args_list]
+
+    @pytest.mark.asyncio
+    async def test_in_progress_with_logs(self, tmp_path: Path) -> None:
+        """IN_PROGRESS with logs extracts the last log message."""
+        settings = FalSettings()
+        backend = FalBackend(settings, output_dir=tmp_path)
+
+        fake_result: dict[str, object] = {"images": [], "seed": 1}
+        mock_update = MagicMock(
+            status="IN_PROGRESS",
+            logs=[{"message": "step 1"}, {"message": "step 2"}],
+        )
+        callback = MagicMock()
+
+        with (
+            patch(
+                "animeforge.backend.fal_backend.fal_client.subscribe",
+                side_effect=_make_subscribe_with_update(fake_result, mock_update),
+            ),
+            patch.object(
+                backend,
+                "_download_images",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+        ):
+            await backend.generate(
+                GenerationRequest(prompt="test"), progress_callback=callback
+            )
+
+        # step = min(3 + 2, 8) = 5, last_log = "step 2"
+        assert (5, 10, "step 2") in [c.args for c in callback.call_args_list]
+
+    @pytest.mark.asyncio
+    async def test_in_progress_empty_logs(self, tmp_path: Path) -> None:
+        """IN_PROGRESS with empty logs uses 'Generating...' fallback."""
+        settings = FalSettings()
+        backend = FalBackend(settings, output_dir=tmp_path)
+
+        fake_result: dict[str, object] = {"images": [], "seed": 1}
+        mock_update = MagicMock(status="IN_PROGRESS", logs=[])
+        callback = MagicMock()
+
+        with (
+            patch(
+                "animeforge.backend.fal_backend.fal_client.subscribe",
+                side_effect=_make_subscribe_with_update(fake_result, mock_update),
+            ),
+            patch.object(
+                backend,
+                "_download_images",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+        ):
+            await backend.generate(
+                GenerationRequest(prompt="test"), progress_callback=callback
+            )
+
+        # step = min(3 + 0, 8) = 3, last_log = "Generating..."
+        assert (3, 10, "Generating...") in [c.args for c in callback.call_args_list]
+
+    @pytest.mark.asyncio
+    async def test_unknown_status_ignored(self, tmp_path: Path) -> None:
+        """Unknown status type is silently ignored."""
+        settings = FalSettings()
+        backend = FalBackend(settings, output_dir=tmp_path)
+
+        fake_result: dict[str, object] = {"images": [], "seed": 1}
+        mock_update = MagicMock(status="COMPLETED")
+        callback = MagicMock()
+
+        with (
+            patch(
+                "animeforge.backend.fal_backend.fal_client.subscribe",
+                side_effect=_make_subscribe_with_update(fake_result, mock_update),
+            ),
+            patch.object(
+                backend,
+                "_download_images",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+        ):
+            await backend.generate(
+                GenerationRequest(prompt="test"), progress_callback=callback
+            )
+
+        # on_queue_update should NOT have added any queue/progress call.
+        # Only the surrounding generate() calls: (1,10,...), (9,10,...), (10,10,...)
+        call_steps = [c.args[0] for c in callback.call_args_list]
+        assert 2 not in call_steps  # no IN_QUEUE call
+        # No step in range 3-8 (no IN_PROGRESS call)
+        assert all(s not in call_steps for s in range(3, 9))
+
+
 @pytest.mark.asyncio
 async def test_generate_non_int_seed(tmp_path: Path) -> None:
     """generate() handles non-integer seed in result by defaulting to -1."""
