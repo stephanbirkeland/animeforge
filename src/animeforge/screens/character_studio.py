@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
+from pydantic import ValidationError
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
@@ -441,16 +442,20 @@ class CharacterStudioScreen(Screen[None]):
                 )
             )
 
-        character = Character(
-            name=name,
-            description=description,
-            reference_images=reference_images,
-            ip_adapter_weight=ip_weight,
-            negative_prompt=negative,
-            animations=animations,
-            transitions=transitions,
-            default_animation=str(default_anim),
-        )
+        try:
+            character = Character(
+                name=name,
+                description=description,
+                reference_images=reference_images,
+                ip_adapter_weight=ip_weight,
+                negative_prompt=negative,
+                animations=animations,
+                transitions=transitions,
+                default_animation=str(default_anim),
+            )
+        except ValidationError as exc:
+            self._set_status(f"Invalid input: {exc.errors()[0]['msg']}")
+            return
 
         proj = getattr(self.app, "_current_project", None)
         if proj is not None:

@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from pydantic import ValidationError
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
@@ -527,7 +528,11 @@ class SceneEditorScreen(Screen[None]):
         if existing_id is not None:
             kwargs["id"] = existing_id
 
-        scene = Scene(**kwargs)
+        try:
+            scene = Scene(**kwargs)
+        except ValidationError as exc:
+            self._set_status(f"Invalid input: {exc.errors()[0]['msg']}")
+            return
 
         proj = getattr(self.app, "_current_project", None)
         if proj is not None:
