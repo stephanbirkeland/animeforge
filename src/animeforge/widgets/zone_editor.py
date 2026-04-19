@@ -147,16 +147,19 @@ class ZoneEditor(Widget):
     def _notify_changed(self) -> None:
         self.post_message(self.Changed(self.zones))
 
-    def _read_fields(self) -> tuple[str, str, float, float, float, float, int]:
-        return (
-            self.query_one("#ze-id", Input).value.strip(),
-            self.query_one("#ze-name", Input).value.strip(),
-            float(self.query_one("#ze-x", Input).value or 0),
-            float(self.query_one("#ze-y", Input).value or 0),
-            float(self.query_one("#ze-w", Input).value or 200),
-            float(self.query_one("#ze-h", Input).value or 200),
-            int(self.query_one("#ze-z", Input).value or 1),
-        )
+    def _read_fields(self) -> tuple[str, str, float, float, float, float, int] | None:
+        try:
+            return (
+                self.query_one("#ze-id", Input).value.strip(),
+                self.query_one("#ze-name", Input).value.strip(),
+                float(self.query_one("#ze-x", Input).value or 0),
+                float(self.query_one("#ze-y", Input).value or 0),
+                float(self.query_one("#ze-w", Input).value or 200),
+                float(self.query_one("#ze-h", Input).value or 200),
+                int(self.query_one("#ze-z", Input).value or 1),
+            )
+        except ValueError:
+            return None
 
     def _clear_fields(self) -> None:
         self.query_one("#ze-id", Input).value = ""
@@ -192,7 +195,11 @@ class ZoneEditor(Widget):
         self._editing_row_key = event.row_key
 
     def _add_zone(self) -> None:
-        zid, zname, x, y, w, h, z = self._read_fields()
+        fields = self._read_fields()
+        if fields is None:
+            self.notify("Invalid coordinates — enter numbers only.", severity="error")
+            return
+        zid, zname, x, y, w, h, z = fields
         if not zid or not zname:
             return
 
@@ -208,7 +215,11 @@ class ZoneEditor(Widget):
         self._notify_changed()
 
     def _update_zone(self) -> None:
-        zid, zname, x, y, w, h, z = self._read_fields()
+        fields = self._read_fields()
+        if fields is None:
+            self.notify("Invalid coordinates — enter numbers only.", severity="error")
+            return
+        zid, zname, x, y, w, h, z = fields
         if not zid:
             return
 

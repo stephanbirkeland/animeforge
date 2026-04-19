@@ -217,6 +217,50 @@ async def test_zone_editor_delete_zone() -> None:
         assert changed[-1].zones == []
 
 
+async def test_zone_editor_add_zone_invalid_input() -> None:
+    """Non-numeric coordinate in add path shows error, does not crash or add a zone."""
+    ze = ZoneEditor()
+    app = _WidgetApp(ze)
+    async with app.run_test() as pilot:
+        editor = pilot.app.query_one(ZoneEditor)
+        editor.query_one("#ze-id", Input).value = "shelf"
+        editor.query_one("#ze-name", Input).value = "Shelf"
+        editor.query_one("#ze-x", Input).value = "abc"
+        await pilot.pause()
+
+        editor._add_zone()
+        await pilot.pause()
+
+        table = editor.query_one("#ze-table", DataTable)
+        assert table.row_count == 0
+        changed = [m for m in app.captured if isinstance(m, ZoneEditor.Changed)]
+        assert len(changed) == 0
+
+
+async def test_zone_editor_update_zone_invalid_input() -> None:
+    """Non-numeric coordinate in update path shows error, does not modify zones."""
+    ze = ZoneEditor()
+    app = _WidgetApp(ze)
+    async with app.run_test() as pilot:
+        editor = pilot.app.query_one(ZoneEditor)
+        editor.set_zones([_make_zone("desk", "Desk")])
+        await pilot.pause()
+
+        editor.query_one("#ze-id", Input).value = "desk"
+        editor.query_one("#ze-name", Input).value = "Desk"
+        editor.query_one("#ze-x", Input).value = "not-a-number"
+        await pilot.pause()
+
+        app.captured.clear()
+        editor._update_zone()
+        await pilot.pause()
+
+        table = editor.query_one("#ze-table", DataTable)
+        assert table.row_count == 1
+        changed = [m for m in app.captured if isinstance(m, ZoneEditor.Changed)]
+        assert len(changed) == 0
+
+
 # ===========================================================================
 # ImagePreview tests
 # ===========================================================================
