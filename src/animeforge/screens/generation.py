@@ -301,6 +301,8 @@ class GenerationScreen(Screen[None]):
                 log.write("[bold cyan]Starting:[/bold cyan] Effects / particles")
                 panel.set_progress("fx", 10, "Starting...")
                 fx_dir = output_dir / "effects"
+                _managed_ids = {"rain", "snow", "leaves", "sakura"}
+                proj.scene.effects = [e for e in proj.scene.effects if e.id not in _managed_ids]
                 try:
                     rain_path = generate_rain_sprites(fx_dir)
                     proj.scene.effects.append(
