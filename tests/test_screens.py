@@ -956,3 +956,49 @@ async def test_scene_editor_edit_selected_zone() -> None:
         assert screen.query_one("#zone-name", Input).value == "Desk Area"
         assert screen.query_one("#zone-x", Input).value == "100"
         assert screen.query_one("#zone-y", Input).value == "200"
+
+
+# ---------------------------------------------------------------------------
+# 12. Validation error handling
+# ---------------------------------------------------------------------------
+
+
+async def test_character_studio_invalid_ip_weight_shows_status() -> None:
+    """Entering an out-of-range ip_adapter_weight shows a status error, not a crash."""
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("character_studio")
+        await pilot.pause()
+
+        pilot.app._current_project = None  # type: ignore[attr-defined]
+
+        screen = pilot.app.screen
+        screen.query_one("#char-name", Input).value = "Test Character"
+        screen.query_one("#char-ip-weight", Input).value = "1.5"
+
+        screen._save_character()
+        await pilot.pause()
+
+        label = screen.query_one("#char-status", Label)
+        assert "Invalid input" in str(label.renderable)
+
+
+async def test_scene_editor_zero_dimension_shows_status() -> None:
+    """Entering 0 for scene width shows a status error, not a crash."""
+    app = AnimeForgeApp()
+    async with app.run_test(size=(120, 80)) as pilot:
+        pilot.app.navigate("scene_editor")
+        await pilot.pause()
+
+        pilot.app._current_project = None  # type: ignore[attr-defined]
+
+        screen = pilot.app.screen
+        screen.query_one("#scene-name", Input).value = "Test Scene"
+        screen.query_one("#scene-width", Input).value = "0"
+        screen.query_one("#scene-height", Input).value = "720"
+
+        screen._save_scene()
+        await pilot.pause()
+
+        label = screen.query_one("#scene-status", Label)
+        assert "Invalid input" in str(label.renderable)
