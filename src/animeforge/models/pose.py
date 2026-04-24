@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PoseKeypoints(BaseModel):
     """OpenPose-compatible keypoint set for a single pose."""
+
+    model_config = ConfigDict(frozen=True)
 
     # Each point is [x, y, confidence] normalized 0-1
     nose: list[float] = Field(default_factory=lambda: [0.5, 0.15, 1.0])
@@ -28,12 +30,16 @@ class PoseKeypoints(BaseModel):
 class PoseFrame(BaseModel):
     """A single frame in a pose animation sequence."""
 
+    model_config = ConfigDict(frozen=True)
+
     keypoints: PoseKeypoints
     duration_ms: int = Field(default=83, gt=0)  # ~12fps default
 
 
 class PoseSequence(BaseModel):
     """A sequence of pose frames forming an animation."""
+
+    model_config = ConfigDict(frozen=True)
 
     name: str
     frames: list[PoseFrame]
