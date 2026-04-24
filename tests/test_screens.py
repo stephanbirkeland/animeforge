@@ -927,6 +927,110 @@ async def test_scene_editor_save_scene_updates_project(tmp_path: object) -> None
         assert "saved" in str(label.renderable).lower()
 
 
+# ---------------------------------------------------------------------------
+# 12. _write_toml_fallback tests
+# ---------------------------------------------------------------------------
+
+
+def test_fallback_string_value(tmp_path: object) -> None:
+    """Top-level string value is quoted."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(p, {"active_backend": "comfyui"})
+    assert 'active_backend = "comfyui"' in p.read_text()
+
+
+def test_fallback_int_value(tmp_path: object) -> None:
+    """Top-level int value is unquoted."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(p, {"port": 8188})
+    assert "port = 8188" in p.read_text()
+
+
+def test_fallback_float_value(tmp_path: object) -> None:
+    """Top-level float value is unquoted."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(p, {"scale": 1.5})
+    assert "scale = 1.5" in p.read_text()
+
+
+def test_fallback_bool_true(tmp_path: object) -> None:
+    """Top-level True is serialized as lowercase 'true'."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(p, {"debug": True})
+    assert "debug = true" in p.read_text()
+
+
+def test_fallback_bool_false(tmp_path: object) -> None:
+    """Top-level False is serialized as lowercase 'false'."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(p, {"debug": False})
+    assert "debug = false" in p.read_text()
+
+
+def test_fallback_mixed_top_level(tmp_path: object) -> None:
+    """Mixed top-level types produce correct TOML."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(
+        p, {"active_backend": "comfyui", "port": 8188, "debug": False}
+    )
+    content = p.read_text()
+    assert 'active_backend = "comfyui"' in content
+    assert "port = 8188" in content
+    assert "debug = false" in content
+
+
+def test_fallback_nested_dict_mixed_types(tmp_path: object) -> None:
+    """Nested dict values are serialized with correct types."""
+    from pathlib import Path
+
+    from animeforge.screens.settings_screen import SettingsScreen
+
+    p = Path(str(tmp_path)) / "config.toml"
+    SettingsScreen._write_toml_fallback(
+        p,
+        {
+            "section": {
+                "host": "localhost",
+                "port": 8188,
+                "rate": 0.75,
+                "use_ssl": True,
+                "verbose": False,
+            }
+        },
+    )
+    content = p.read_text()
+    assert "[section]" in content
+    assert 'host = "localhost"' in content
+    assert "port = 8188" in content
+    assert "rate = 0.75" in content
+    assert "use_ssl = true" in content
+    assert "verbose = false" in content
+
+
 async def test_scene_editor_edit_selected_zone() -> None:
     """Clicking Edit Zone populates the zone fields from the selected row."""
     app = AnimeForgeApp()

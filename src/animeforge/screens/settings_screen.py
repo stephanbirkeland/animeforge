@@ -342,6 +342,10 @@ class SettingsScreen(Screen[None]):
                         lines.append(f"{k} = {v}")
                     else:
                         lines.append(f'{k} = "{v}"')
+            elif isinstance(value, bool):
+                lines.append(f"{key} = {'true' if value else 'false'}")
+            elif isinstance(value, (int, float)):
+                lines.append(f"{key} = {value}")
             else:
                 lines.append(f'{key} = "{value}"')
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
