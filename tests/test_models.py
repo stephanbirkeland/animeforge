@@ -378,6 +378,42 @@ class TestCreateDefaultCharacter:
 # ---------------------------------------------------------------------------
 
 
+class TestPoseModelImmutability:
+    """Tests that pose models are frozen (immutable) to protect lru_cache."""
+
+    def test_pose_keypoints_is_immutable(self):
+        kp = PoseKeypoints()
+        with pytest.raises(ValidationError):
+            kp.nose = [0.0, 0.0, 0.0]
+
+    def test_pose_frame_is_immutable(self):
+        frame = PoseFrame(keypoints=PoseKeypoints())
+        with pytest.raises(ValidationError):
+            frame.duration_ms = 999
+
+    def test_pose_sequence_is_immutable(self):
+        seq = PoseSequence(
+            name="test",
+            frames=[PoseFrame(keypoints=PoseKeypoints())],
+        )
+        with pytest.raises(ValidationError):
+            seq.frames = []
+
+
+class TestPoseLoaderCache:
+    """Tests that pose loader returns cached (same) objects."""
+
+    def test_load_returns_same_object(self):
+        from animeforge.poses.loader import load
+
+        try:
+            result1 = load("idle")
+            result2 = load("idle")
+            assert result1 is result2
+        finally:
+            load.cache_clear()
+
+
 class TestProjectLoadErrorPaths:
     """Tests for Project.load edge cases and error paths."""
 
