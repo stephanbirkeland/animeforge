@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from animeforge.backend.base import GenerationBackend, GenerationRequest
 from animeforge.models import Scene, TimeOfDay, Weather
-from animeforge.pipeline.consistency import build_scene_prompt
+from animeforge.pipeline.consistency import QUALITY_NEGATIVE, build_scene_prompt
 
 if TYPE_CHECKING:
     from animeforge.backend.base import ProgressCallback
@@ -75,7 +75,7 @@ async def generate_scene_backgrounds(
             season=scene.default_season,
         )
 
-        negative = "low quality, blurry, watermark, text, logo, 3d render, photograph, realistic"
+        negative = QUALITY_NEGATIVE
 
         request = GenerationRequest(
             prompt=prompt,

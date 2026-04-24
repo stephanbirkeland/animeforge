@@ -1,16 +1,22 @@
 """Tests for pipeline modules."""
 
+from __future__ import annotations
+
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from PIL import Image
 
+from animeforge.backend.mock import MockBackend
+from animeforge.config import AppConfig
 from animeforge.models import AnimationDef, Character, Rect, Scene, Zone
 from animeforge.models.enums import TimeOfDay, Weather
 from animeforge.models.pose import PoseFrame, PoseKeypoints, PoseSequence
 from animeforge.pipeline.assembly import AssemblyError, assemble_sprite_sheet
 from animeforge.pipeline.consistency import (
+    QUALITY_NEGATIVE,
     build_character_prompt,
     build_negative_prompt,
     build_scene_prompt,
@@ -22,6 +28,7 @@ from animeforge.pipeline.effect_gen import (
     generate_snow_sprites,
 )
 from animeforge.pipeline.poses import interpolate_poses, load_pose_sequence, render_pose_image
+from animeforge.pipeline.scene_gen import generate_scene_backgrounds
 
 
 def test_build_scene_prompt():
@@ -202,3 +209,34 @@ def test_render_pose_image_dimensions(tmp_path: Path):
     render_pose_image(kp, out, width=256, height=128)
     img = PILImage.open(out)
     assert img.size == (256, 128)
+
+
+@pytest.mark.asyncio
+async def test_scene_gen_uses_quality_negative(tmp_path: Path) -> None:
+    scene = Scene(name="test-room")
+    backend = MockBackend(output_dir=tmp_path / "mock_out")
+    await backend.connect()
+    config = AppConfig()
+
+    captured: list[object] = []
+    original_generate = backend.generate
+
+    async def spy_generate(
+        request: object, *, progress_callback: object = None
+    ) -> object:
+        captured.append(request)
+        return await original_generate(request, progress_callback=progress_callback)  # type: ignore[arg-type]
+
+    with patch.object(backend, "generate", side_effect=spy_generate):
+        await generate_scene_backgrounds(
+            scene,
+            backend,
+            config,
+            output_dir=tmp_path / "bg",
+            times=[TimeOfDay.DAY],
+        )
+
+    assert len(captured) == 1
+    req = captured[0]
+    assert req.negative_prompt == QUALITY_NEGATIVE  # type: ignore[union-attr]
+    assert "worst quality" in req.negative_prompt  # type: ignore[union-attr]
