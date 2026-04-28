@@ -238,44 +238,36 @@ class SettingsScreen(Screen[None]):
             case "btn-test":
                 self._test_connection()
 
+    def _parse_int(self, widget_id: str, label: str, default: int) -> int | None:
+        try:
+            return int(self.query_one(widget_id, Input).value or default)
+        except ValueError:
+            self._set_status(f"Invalid {label} — must be an integer.")
+            return None
+
+    def _parse_float(self, widget_id: str, label: str, default: float) -> float | None:
+        try:
+            return float(self.query_one(widget_id, Input).value or default)
+        except ValueError:
+            self._set_status(f"Invalid {label} — must be a number.")
+            return None
+
     def _save_settings(self) -> None:
         """Collect inputs and write config.toml."""
         config = load_config()
 
-        try:
-            port = int(self.query_one("#comfy-port", Input).value or 8188)
-        except ValueError:
-            self._set_status("Invalid Port — must be an integer.")
-            return
-        try:
-            gen_width = int(self.query_one("#gen-width", Input).value or 1024)
-        except ValueError:
-            self._set_status("Invalid Width — must be an integer.")
-            return
-        try:
-            gen_height = int(self.query_one("#gen-height", Input).value or 1024)
-        except ValueError:
-            self._set_status("Invalid Height — must be an integer.")
-            return
-        try:
-            gen_steps = int(self.query_one("#gen-steps", Input).value or 30)
-        except ValueError:
-            self._set_status("Invalid Steps — must be an integer.")
-            return
-        try:
-            gen_cfg = float(self.query_one("#gen-cfg", Input).value or 7.0)
-        except ValueError:
-            self._set_status("Invalid CFG Scale — must be a number.")
-            return
-        try:
-            gen_batch_size = int(self.query_one("#gen-batch-size", Input).value or 1)
-        except ValueError:
-            self._set_status("Invalid Batch Size — must be an integer.")
-            return
-        try:
-            gen_seed = int(self.query_one("#gen-seed", Input).value or -1)
-        except ValueError:
-            self._set_status("Invalid Seed — must be an integer.")
+        port = self._parse_int("#comfy-port", "Port", 8188)
+        gen_width = self._parse_int("#gen-width", "Width", 1024)
+        gen_height = self._parse_int("#gen-height", "Height", 1024)
+        gen_steps = self._parse_int("#gen-steps", "Steps", 30)
+        gen_cfg = self._parse_float("#gen-cfg", "CFG Scale", 7.0)
+        gen_batch_size = self._parse_int("#gen-batch-size", "Batch Size", 1)
+        gen_seed = self._parse_int("#gen-seed", "Seed", -1)
+
+        if any(
+            v is None
+            for v in (port, gen_width, gen_height, gen_steps, gen_cfg, gen_batch_size, gen_seed)
+        ):
             return
 
         backend_select = self.query_one("#active-backend", Select)
