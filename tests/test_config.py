@@ -1,9 +1,11 @@
 """Tests for configuration system."""
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
-from animeforge.config import AppConfig, ComfyUISettings, GenerationSettings, ModelSettings
+from animeforge.config import AppConfig, ComfyUISettings, GenerationSettings, ModelSettings, load_config
 
 
 def test_comfyui_settings_defaults():
@@ -48,3 +50,21 @@ def test_comfyui_settings_port_rejected(bad: int) -> None:
 def test_comfyui_settings_port_accepted(good: int) -> None:
     settings = ComfyUISettings(port=good)
     assert settings.port == good
+
+
+def test_load_config_invalid_toml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "config.toml").write_text("[invalid\nfoo = ")
+    monkeypatch.setattr("animeforge.config._default_config_dir", lambda: tmp_path)
+    with pytest.raises(RuntimeError, match=str(tmp_path / "config.toml")):
+        load_config()
+    with pytest.raises(RuntimeError, match="Fix or delete"):
+        load_config()
+
+
+def test_load_config_invalid_field_value(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "config.toml").write_text("[comfyui]\nport = -1\n")
+    monkeypatch.setattr("animeforge.config._default_config_dir", lambda: tmp_path)
+    with pytest.raises(RuntimeError, match=str(tmp_path / "config.toml")):
+        load_config()
+    with pytest.raises(RuntimeError, match="Fix or delete"):
+        load_config()

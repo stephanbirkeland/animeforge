@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
 
 
@@ -107,6 +108,14 @@ class AppConfig(BaseSettings):
 
 def load_config() -> AppConfig:
     """Load application config, creating defaults if needed."""
-    config = AppConfig()
+    toml_path = _default_config_dir() / "config.toml"
+    try:
+        config = AppConfig()
+    except (ValidationError, tomllib.TOMLDecodeError) as exc:
+        msg = (
+            f"Failed to load config from {toml_path}: {exc}\n"
+            f"Fix or delete {toml_path} to reset to defaults."
+        )
+        raise RuntimeError(msg) from exc
     config.ensure_dirs()
     return config
