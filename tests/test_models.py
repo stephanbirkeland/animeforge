@@ -300,6 +300,18 @@ class TestPoseFrameValidation:
         assert frame.duration_ms == 1
 
 
+class TestPoseSequenceValidation:
+    """Tests for PoseSequence frames min_length=1 constraint."""
+
+    def test_pose_sequence_rejects_empty_frames(self) -> None:
+        with pytest.raises(ValidationError):
+            PoseSequence(name="test", frames=[])
+
+    def test_pose_sequence_accepts_single_frame(self) -> None:
+        seq = PoseSequence(name="test", frames=[PoseFrame(keypoints=PoseKeypoints())])
+        assert len(seq.frames) == 1
+
+
 class TestCharacterValidation:
     """Tests for Character ip_adapter_weight 0-1 constraint."""
 

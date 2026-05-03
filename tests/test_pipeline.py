@@ -158,7 +158,7 @@ def test_assemble_sprite_sheet_missing_file_raises_assembly_error(tmp_path: Path
 
 
 def test_interpolate_poses_empty_sequence_raises():
-    seq = PoseSequence(name="empty", frames=[])
+    seq = PoseSequence.model_construct(name="empty", frames=[])
     with pytest.raises(ValueError, match="has no frames"):
         interpolate_poses(seq, 5)
 

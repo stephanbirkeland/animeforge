@@ -36,5 +36,5 @@ class PoseSequence(BaseModel):
     """A sequence of pose frames forming an animation."""
 
     name: str
-    frames: list[PoseFrame]
+    frames: list[PoseFrame] = Field(min_length=1)
     loop: bool = True
