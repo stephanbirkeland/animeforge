@@ -234,6 +234,28 @@ def test_export_config_image_quality_accepted(good: int) -> None:
     assert config.image_quality == good
 
 
+def test_export_config_rejects_empty_times() -> None:
+    with pytest.raises(ValidationError):
+        ExportConfig(times=[])
+
+
+def test_export_config_rejects_empty_weathers() -> None:
+    with pytest.raises(ValidationError):
+        ExportConfig(weathers=[])
+
+
+def test_export_config_rejects_empty_seasons() -> None:
+    with pytest.raises(ValidationError):
+        ExportConfig(seasons=[])
+
+
+def test_export_config_default_construction_valid() -> None:
+    config = ExportConfig()
+    assert len(config.times) > 0
+    assert len(config.weathers) > 0
+    assert len(config.seasons) > 0
+
+
 class TestSceneValidation:
     """Tests for Scene width/height > 0 constraints."""
 
