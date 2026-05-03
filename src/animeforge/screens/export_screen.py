@@ -138,6 +138,15 @@ class ExportScreen(Screen[None]):
         weathers = [w for w in Weather if self.query_one(f"#weather-{w.value}", Checkbox).value]
         seasons = [s for s in Season if self.query_one(f"#season-{s.value}", Checkbox).value]
 
+        empty = [
+            name
+            for name, lst in [("Times of Day", times), ("Weathers", weathers), ("Seasons", seasons)]
+            if not lst
+        ]
+        if empty:
+            self._set_status(f"Select at least one option for: {', '.join(empty)}.")
+            raise ValueError("empty selection")
+
         fmt_select = self.query_one("#export-format", Select)
         image_format = fmt_select.value if fmt_select.value != Select.BLANK else "webp"
 
