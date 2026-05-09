@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from animeforge.models.enums import EffectType, Season, TimeOfDay, Weather
 
@@ -15,8 +15,8 @@ class Rect(BaseModel):
 
     x: float
     y: float
-    width: float
-    height: float
+    width: float = Field(..., gt=0)
+    height: float = Field(..., gt=0)
 
 
 class Layer(BaseModel):
@@ -68,3 +68,20 @@ class Scene(BaseModel):
     default_time: TimeOfDay = TimeOfDay.DAY
     default_weather: Weather = Weather.CLEAR
     default_season: Season = Season.SUMMER
+
+    @model_validator(mode="after")
+    def validate_zone_bounds(self) -> Scene:
+        for zone in self.zones:
+            b = zone.bounds
+            if (
+                b.x < 0
+                or b.y < 0
+                or b.x + b.width > self.width
+                or b.y + b.height > self.height
+            ):
+                raise ValueError(
+                    f"Zone '{zone.name}' bounds (x={b.x}, y={b.y}, "
+                    f"w={b.width}, h={b.height}) exceed scene dimensions "
+                    f"({self.width}x{self.height})"
+                )
+        return self

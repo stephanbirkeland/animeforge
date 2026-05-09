@@ -325,6 +325,108 @@ class TestCharacterValidation:
 # ---------------------------------------------------------------------------
 
 
+class TestRectValidation:
+    """Tests for Rect width/height > 0 constraints."""
+
+    def test_rect_width_zero_raises(self):
+        with pytest.raises(ValidationError):
+            Rect(x=0, y=0, width=0, height=5)
+
+    def test_rect_width_negative_raises(self):
+        with pytest.raises(ValidationError):
+            Rect(x=0, y=0, width=-10, height=5)
+
+    def test_rect_height_zero_raises(self):
+        with pytest.raises(ValidationError):
+            Rect(x=0, y=0, width=5, height=0)
+
+    def test_rect_height_negative_raises(self):
+        with pytest.raises(ValidationError):
+            Rect(x=0, y=0, width=5, height=-3)
+
+    def test_rect_accepts_valid_dimensions(self):
+        r = Rect(x=0, y=0, width=1, height=1)
+        assert r.width == 1
+        assert r.height == 1
+
+
+class TestZoneBoundsValidation:
+    """Tests for Scene zone spatial bounds validation."""
+
+    def _make_zone(self, name: str = "test-zone", x: float = 0, y: float = 0, w: float = 100, h: float = 100) -> Zone:
+        return Zone(id=name, name=name, bounds=Rect(x=x, y=y, width=w, height=h), z_index=1)
+
+    def test_zone_within_bounds_passes(self):
+        scene = Scene(
+            name="test",
+            width=1920,
+            height=1080,
+            zones=[self._make_zone(x=100, y=50, w=900, h=600)],
+        )
+        assert len(scene.zones) == 1
+
+    def test_zone_exactly_at_bounds_passes(self):
+        scene = Scene(
+            name="test",
+            width=1920,
+            height=1080,
+            zones=[self._make_zone(x=0, y=0, w=1920, h=1080)],
+        )
+        assert len(scene.zones) == 1
+
+    def test_zone_exceeds_width_raises(self):
+        with pytest.raises(ValidationError, match="test-zone"):
+            Scene(
+                name="test",
+                width=1920,
+                height=1080,
+                zones=[self._make_zone(x=1800, y=0, w=200, h=100)],
+            )
+
+    def test_zone_exceeds_height_raises(self):
+        with pytest.raises(ValidationError, match="test-zone"):
+            Scene(
+                name="test",
+                width=1920,
+                height=1080,
+                zones=[self._make_zone(x=0, y=1000, w=100, h=200)],
+            )
+
+    def test_zone_negative_x_raises(self):
+        with pytest.raises(ValidationError, match="test-zone"):
+            Scene(
+                name="test",
+                width=1920,
+                height=1080,
+                zones=[self._make_zone(x=-10, y=0, w=100, h=100)],
+            )
+
+    def test_zone_negative_y_raises(self):
+        with pytest.raises(ValidationError, match="test-zone"):
+            Scene(
+                name="test",
+                width=1920,
+                height=1080,
+                zones=[self._make_zone(x=0, y=-5, w=100, h=100)],
+            )
+
+    def test_multiple_zones_first_invalid_raises(self):
+        with pytest.raises(ValidationError, match="bad-zone"):
+            Scene(
+                name="test",
+                width=1920,
+                height=1080,
+                zones=[
+                    self._make_zone(name="bad-zone", x=1900, y=0, w=100, h=100),
+                    self._make_zone(name="good-zone", x=0, y=0, w=100, h=100),
+                ],
+            )
+
+    def test_scene_no_zones_passes(self):
+        scene = Scene(name="test")
+        assert len(scene.zones) == 0
+
+
 class TestCreateDefaultCharacter:
     """Tests for the create_default_character() factory function."""
 
