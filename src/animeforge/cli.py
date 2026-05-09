@@ -44,6 +44,45 @@ def create(
     typer.echo(f"Created project '{name}' at {save_path}")
 
 
+@app.command(name="list")
+def list_projects() -> None:
+    """List all saved AnimeForge projects."""
+    from animeforge.config import load_config  # noqa: PLC0415
+    from animeforge.models.project import Project, ProjectLoadError  # noqa: PLC0415
+
+    config = load_config()
+    projects_dir = config.projects_dir
+
+    if not projects_dir.exists():
+        typer.echo("No projects found (projects directory does not exist).")
+        return
+
+    entries = sorted(d for d in projects_dir.iterdir() if d.is_dir())
+    if not entries:
+        typer.echo("No projects found.")
+        return
+
+    rows: list[tuple[str, str, str, str]] = []
+    for entry in entries:
+        try:
+            project = Project.load(entry)
+        except ProjectLoadError:
+            continue
+        rows.append((project.name, project.scene.name, project.version, str(entry)))
+
+    if not rows:
+        typer.echo("No projects found.")
+        return
+
+    headers = ("NAME", "SCENE", "VERSION", "PATH")
+    col_widths = [max(len(h), max(len(r[i]) for r in rows)) for i, h in enumerate(headers)]
+    header_line = "  ".join(h.ljust(w) for h, w in zip(headers, col_widths, strict=True))
+    typer.echo(header_line)
+    typer.echo("-" * len(header_line))
+    for row in rows:
+        typer.echo("  ".join(v.ljust(w) for v, w in zip(row, col_widths, strict=True)))
+
+
 @app.command()
 def generate(
     prompt: Annotated[str, typer.Argument(help="Generation prompt")],
