@@ -473,6 +473,108 @@ def test_check_backend_flag_defaults_to_config(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# check --json flag
+# ---------------------------------------------------------------------------
+
+
+def test_check_json_mock_backend(tmp_path):
+    """Check --json with mock backend outputs valid JSON."""
+    import json
+
+    config = _make_config(tmp_path, active_backend="mock")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["check", "--backend", "mock", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert data == {"backend": "mock", "status": "ready"}
+
+
+def test_check_json_comfyui_available(tmp_path):
+    """Check --json with comfyui backend when available."""
+    import json
+
+    config = _make_config(tmp_path, active_backend="comfyui")
+    mock_comfy = MockBackend(output_dir=tmp_path)
+    with (
+        patch("animeforge.config.load_config", return_value=config),
+        patch("animeforge.backend.comfyui.ComfyUIBackend", return_value=mock_comfy),
+    ):
+        result = runner.invoke(app, ["check", "--backend", "comfyui", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert data["backend"] == "comfyui"
+    assert data["status"] == "ready"
+    assert isinstance(data["models"], int)
+    assert isinstance(data["url"], str)
+
+
+def test_check_json_comfyui_unavailable(tmp_path):
+    """Check --json with comfyui backend when unavailable."""
+    import json
+
+    config = _make_config(tmp_path, active_backend="comfyui")
+    mock_comfy = MockBackend(output_dir=tmp_path)
+    mock_comfy.is_available = AsyncMock(return_value=False)  # type: ignore[method-assign]
+    with (
+        patch("animeforge.config.load_config", return_value=config),
+        patch("animeforge.backend.comfyui.ComfyUIBackend", return_value=mock_comfy),
+    ):
+        result = runner.invoke(app, ["check", "--backend", "comfyui", "--json"])
+    assert result.exit_code == 1
+    data = json.loads(result.output.strip())
+    assert data["backend"] == "comfyui"
+    assert data["status"] == "offline"
+    assert "error" in data
+
+
+def test_check_json_fal_available(tmp_path):
+    """Check --json with fal backend when available."""
+    import json
+
+    config = _make_config(tmp_path, active_backend="fal")
+    mock_fal = MockBackend(output_dir=tmp_path)
+    with (
+        patch("animeforge.config.load_config", return_value=config),
+        patch("animeforge.backend.fal_backend.FalBackend", return_value=mock_fal),
+    ):
+        result = runner.invoke(app, ["check", "--backend", "fal", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output.strip())
+    assert data["backend"] == "fal"
+    assert data["status"] == "ready"
+    assert isinstance(data["endpoints"], list)
+
+
+def test_check_json_fal_unavailable(tmp_path):
+    """Check --json with fal backend when unavailable."""
+    import json
+
+    config = _make_config(tmp_path, active_backend="fal")
+    mock_fal = MockBackend(output_dir=tmp_path)
+    mock_fal.is_available = AsyncMock(return_value=False)  # type: ignore[method-assign]
+    with (
+        patch("animeforge.config.load_config", return_value=config),
+        patch("animeforge.backend.fal_backend.FalBackend", return_value=mock_fal),
+    ):
+        result = runner.invoke(app, ["check", "--backend", "fal", "--json"])
+    assert result.exit_code == 1
+    data = json.loads(result.output.strip())
+    assert data["backend"] == "fal"
+    assert data["status"] == "offline"
+    assert "error" in data
+
+
+def test_check_no_json_flag_unchanged(tmp_path):
+    """Check without --json still outputs human-readable text."""
+    config = _make_config(tmp_path, active_backend="mock")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["check", "--backend", "mock"])
+    assert result.exit_code == 0
+    assert "Mock backend: always available" in result.output
+    assert "Status: ready" in result.output
+
+
+# ---------------------------------------------------------------------------
 # create command: default character
 # ---------------------------------------------------------------------------
 
