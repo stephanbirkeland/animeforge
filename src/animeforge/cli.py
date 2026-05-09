@@ -118,6 +118,10 @@ def check(
         str | None,
         typer.Option("--backend", "-b", help="Backend: comfyui, fal, or mock"),
     ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output as JSON for CI/scripting"),
+    ] = False,
 ) -> None:
     """Check backend connectivity and report status."""
     import asyncio  # noqa: PLC0415
@@ -128,6 +132,8 @@ def check(
     backend_name = backend or config.active_backend
 
     async def _run() -> None:
+        import json  # noqa: PLC0415
+
         if backend_name == "fal":
             from animeforge.backend.fal_backend import FalBackend  # noqa: PLC0415
 
@@ -137,18 +143,37 @@ def check(
                 available = await fal_backend.is_available()
                 if available:
                     models = await fal_backend.get_models()
-                    typer.echo("fal.ai: connected")
-                    typer.echo(f"Endpoints: {', '.join(models)}")
-                    typer.echo("Status: ready")
+                    if json_output:
+                        fal_data: dict[str, object] = {
+                            "backend": "fal",
+                            "status": "ready",
+                            "endpoints": models,
+                        }
+                        typer.echo(json.dumps(fal_data))
+                    else:
+                        typer.echo("fal.ai: connected")
+                        typer.echo(f"Endpoints: {', '.join(models)}")
+                        typer.echo("Status: ready")
                 else:
-                    typer.echo("fal.ai: unavailable (check FAL_KEY)")
-                    typer.echo("Status: offline")
+                    if json_output:
+                        fal_err: dict[str, object] = {
+                            "backend": "fal",
+                            "status": "offline",
+                            "error": "check FAL_KEY",
+                        }
+                        typer.echo(json.dumps(fal_err))
+                    else:
+                        typer.echo("fal.ai: unavailable (check FAL_KEY)")
+                        typer.echo("Status: offline")
                     raise typer.Exit(1)
             finally:
                 await fal_backend.disconnect()
         elif backend_name == "mock":
-            typer.echo("Mock backend: always available")
-            typer.echo("Status: ready")
+            if json_output:
+                typer.echo(json.dumps({"backend": "mock", "status": "ready"}))
+            else:
+                typer.echo("Mock backend: always available")
+                typer.echo("Status: ready")
         else:
             from animeforge.backend.comfyui import ComfyUIBackend  # noqa: PLC0415
 
@@ -159,12 +184,30 @@ def check(
                 available = await comfy_backend.is_available()
                 if available:
                     models = await comfy_backend.get_models()
-                    typer.echo(f"ComfyUI: connected ({url})")
-                    typer.echo(f"Models: {len(models)} available")
-                    typer.echo("Status: ready")
+                    if json_output:
+                        comfy_data: dict[str, object] = {
+                            "backend": "comfyui",
+                            "status": "ready",
+                            "url": url,
+                            "models": len(models),
+                        }
+                        typer.echo(json.dumps(comfy_data))
+                    else:
+                        typer.echo(f"ComfyUI: connected ({url})")
+                        typer.echo(f"Models: {len(models)} available")
+                        typer.echo("Status: ready")
                 else:
-                    typer.echo(f"ComfyUI: unreachable ({url})")
-                    typer.echo("Status: offline \u2014 start ComfyUI to generate assets")
+                    if json_output:
+                        comfy_err: dict[str, object] = {
+                            "backend": "comfyui",
+                            "status": "offline",
+                            "url": url,
+                            "error": "connection refused",
+                        }
+                        typer.echo(json.dumps(comfy_err))
+                    else:
+                        typer.echo(f"ComfyUI: unreachable ({url})")
+                        typer.echo("Status: offline \u2014 start ComfyUI to generate assets")
                     raise typer.Exit(1)
             finally:
                 await comfy_backend.disconnect()
