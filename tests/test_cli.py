@@ -102,6 +102,65 @@ def test_create_project_verifies_json_content(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# list command
+# ---------------------------------------------------------------------------
+
+
+def test_list_no_projects_dir(tmp_path):
+    """List when projects_dir does not exist shows a friendly message."""
+    config = _make_config(tmp_path)
+    # Ensure projects_dir does not exist
+    assert not config.projects_dir.exists()
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    assert "No projects found" in result.output
+
+
+def test_list_empty_projects_dir(tmp_path):
+    """List when projects_dir exists but is empty shows a friendly message."""
+    config = _make_config(tmp_path)
+    config.projects_dir.mkdir(parents=True, exist_ok=True)
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    assert "No projects found" in result.output
+
+
+def test_list_with_projects(tmp_path):
+    """List displays a table with project details."""
+    config = _make_config(tmp_path)
+    projects_dir = config.projects_dir
+    projects_dir.mkdir(parents=True, exist_ok=True)
+    _save_sample_project(projects_dir / "alpha")
+    _save_sample_project(projects_dir / "beta")
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    assert "NAME" in result.output
+    assert "SCENE" in result.output
+    assert "VERSION" in result.output
+    assert "PATH" in result.output
+    assert "test-project" in result.output
+    assert "test-scene" in result.output
+    assert "0.1.0" in result.output
+
+
+def test_list_skips_invalid_directories(tmp_path):
+    """List skips directories without a valid project.json."""
+    config = _make_config(tmp_path)
+    projects_dir = config.projects_dir
+    projects_dir.mkdir(parents=True, exist_ok=True)
+    _save_sample_project(projects_dir / "valid-project")
+    (projects_dir / "not-a-project").mkdir()
+    with patch("animeforge.config.load_config", return_value=config):
+        result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    assert "test-project" in result.output
+    assert "not-a-project" not in result.output
+
+
+# ---------------------------------------------------------------------------
 # generate command
 # ---------------------------------------------------------------------------
 
