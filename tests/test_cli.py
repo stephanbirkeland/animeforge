@@ -295,6 +295,73 @@ def test_export_missing_project_argument():
 
 
 # ---------------------------------------------------------------------------
+# validate command
+# ---------------------------------------------------------------------------
+
+
+def _make_valid_scene_json() -> dict:
+    """Minimal scene.json that passes the schema."""
+    return {
+        "version": 1,
+        "meta": {"name": "test", "width": 1920, "height": 1080},
+        "layers": [],
+        "animations": [],
+        "effects": [],
+        "zones": [],
+        "initial": {
+            "time": "day",
+            "season": "autumn",
+            "weather": "clear",
+            "animation": "idle",
+        },
+    }
+
+
+def test_validate_valid_scene_json_file(tmp_path: Path) -> None:
+    """validate accepts a direct path to a valid scene.json and exits 0."""
+    import json
+
+    scene_file = tmp_path / "scene.json"
+    scene_file.write_text(json.dumps(_make_valid_scene_json()), encoding="utf-8")
+    result = runner.invoke(app, ["validate", str(scene_file)])
+    assert result.exit_code == 0
+    assert "scene.json is valid" in result.output
+
+
+def test_validate_valid_scene_json_in_directory(tmp_path: Path) -> None:
+    """validate accepts a directory containing scene.json and exits 0."""
+    import json
+
+    (tmp_path / "scene.json").write_text(
+        json.dumps(_make_valid_scene_json()), encoding="utf-8"
+    )
+    result = runner.invoke(app, ["validate", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "scene.json is valid" in result.output
+
+
+def test_validate_invalid_scene_json(tmp_path: Path) -> None:
+    """validate exits 1 and prints the failing field when required property is missing."""
+    import json
+
+    bad = _make_valid_scene_json()
+    del bad["version"]
+    scene_file = tmp_path / "scene.json"
+    scene_file.write_text(json.dumps(bad), encoding="utf-8")
+    result = runner.invoke(app, ["validate", str(scene_file)])
+    assert result.exit_code == 1
+    assert "validation failed" in result.output
+
+
+def test_validate_missing_path(tmp_path: Path) -> None:
+    """validate exits 1 with a user-friendly message when the path does not exist."""
+    missing = tmp_path / "no-such-file.json"
+    result = runner.invoke(app, ["validate", str(missing)])
+    assert result.exit_code == 1
+    assert "not found" in result.output
+
+
+# ---------------------------------------------------------------------------
 # tui command
 # ---------------------------------------------------------------------------
 

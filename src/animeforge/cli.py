@@ -250,6 +250,40 @@ def export(
 
 
 @app.command()
+def validate(
+    path: Annotated[Path, typer.Argument(help="Path to scene.json or a project directory")],
+) -> None:
+    """Validate a scene.json file against the AnimeForge schema."""
+    import json  # noqa: PLC0415
+
+    import jsonschema  # noqa: PLC0415
+
+    from animeforge.pipeline.validation import validate_scene_json  # noqa: PLC0415
+
+    scene_path = path / "scene.json" if path.is_dir() else path
+
+    if not scene_path.exists():
+        typer.echo(f"Error: {scene_path} not found.", err=True)
+        raise typer.Exit(1)
+
+    try:
+        data = json.loads(scene_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error: {scene_path} is not valid JSON — {e}", err=True)
+        raise typer.Exit(1) from None
+
+    try:
+        validate_scene_json(data)
+    except jsonschema.ValidationError as e:
+        field_path = " > ".join(str(p) for p in e.absolute_path)
+        msg = f"{field_path}: {e.message}" if field_path else e.message
+        typer.echo(f"Error: scene.json validation failed — {msg}", err=True)
+        raise typer.Exit(1) from None
+
+    typer.echo("✓ scene.json is valid")
+
+
+@app.command()
 def preview(
     prompt: Annotated[
         str, typer.Argument(help="Generation prompt")
