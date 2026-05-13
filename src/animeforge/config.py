@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
@@ -76,7 +76,7 @@ class AppConfig(BaseSettings):
         env_nested_delimiter="__",
     )
 
-    active_backend: str = "comfyui"
+    active_backend: Literal["comfyui", "fal", "mock"] = "comfyui"
     config_dir: Path = Field(default_factory=_default_config_dir)
     projects_dir: Path = Field(default_factory=_default_projects_dir)
     comfyui: ComfyUISettings = Field(default_factory=ComfyUISettings)
