@@ -48,3 +48,20 @@ def test_comfyui_settings_port_rejected(bad: int) -> None:
 def test_comfyui_settings_port_accepted(good: int) -> None:
     settings = ComfyUISettings(port=good)
     assert settings.port == good
+
+
+@pytest.mark.parametrize("backend", ["comfyui", "fal", "mock"])
+def test_active_backend_valid_values(backend: str) -> None:
+    config = AppConfig(active_backend=backend)
+    assert config.active_backend == backend
+
+
+def test_active_backend_invalid_rejected() -> None:
+    with pytest.raises(ValidationError):
+        AppConfig(active_backend="typo")
+
+
+def test_active_backend_env_var_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ANIMEFORGE_ACTIVE_BACKEND", "bad")
+    with pytest.raises(ValidationError):
+        AppConfig()
