@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 
 import pytest
-from jsonschema import ValidationError
 
-from animeforge.pipeline.validation import validate_scene_json
+from animeforge.pipeline.validation import SceneValidationError, validate_scene_json
 
 # A fully valid scene_data dict matching what export.py produces.
 VALID_SCENE: dict[str, object] = {
@@ -91,34 +91,34 @@ class TestMissingRequiredFields:
     def test_missing_required_top_level_field(self) -> None:
         data = _scene()
         del data["initial"]  # type: ignore[arg-type]
-        with pytest.raises(ValidationError, match="'initial' is a required property"):
+        with pytest.raises(SceneValidationError, match="'initial' is a required property"):
             validate_scene_json(data)
 
     def test_missing_meta_field(self) -> None:
         data = _scene(meta={"name": "test", "width": 1920})
-        with pytest.raises(ValidationError, match="'height' is a required property"):
+        with pytest.raises(SceneValidationError, match="'height' is a required property"):
             validate_scene_json(data)
 
     def test_missing_layer_images(self) -> None:
         data = _scene(layers=[{"depth": "bg", "parallax_factor": 0.0}])
-        with pytest.raises(ValidationError, match="'images' is a required property"):
+        with pytest.raises(SceneValidationError, match="'images' is a required property"):
             validate_scene_json(data)
 
     def test_missing_zone_type(self) -> None:
         data = _scene(zones=[{"id": "z1", "x": 0, "y": 0, "width": 10, "height": 10}])
-        with pytest.raises(ValidationError, match="'type' is a required property"):
+        with pytest.raises(SceneValidationError, match="'type' is a required property"):
             validate_scene_json(data)
 
 
 class TestInvalidTypes:
     def test_negative_meta_dimensions(self) -> None:
         data = _scene(meta={"name": "test", "width": -1, "height": 1080})
-        with pytest.raises(ValidationError, match="minimum"):
+        with pytest.raises(SceneValidationError, match="minimum"):
             validate_scene_json(data)
 
     def test_zero_meta_width(self) -> None:
         data = _scene(meta={"name": "test", "width": 0, "height": 1080})
-        with pytest.raises(ValidationError, match="minimum"):
+        with pytest.raises(SceneValidationError, match="minimum"):
             validate_scene_json(data)
 
     def test_invalid_initial_type(self) -> None:
@@ -130,7 +130,7 @@ class TestInvalidTypes:
                 "animation": "idle",
             }
         )
-        with pytest.raises(ValidationError, match="'time'"):
+        with pytest.raises(SceneValidationError, match="initial.time"):
             validate_scene_json(data)
 
     def test_invalid_animation_negative_fps(self) -> None:
@@ -145,7 +145,7 @@ class TestInvalidTypes:
                 }
             ]
         )
-        with pytest.raises(ValidationError, match="minimum"):
+        with pytest.raises(SceneValidationError, match="minimum"):
             validate_scene_json(data)
 
 
@@ -155,7 +155,7 @@ class TestExportIntegration:
         sample_project,
         tmp_path,  # noqa: ANN001
     ) -> None:
-        """Export should raise ValidationError when scene data is invalid."""
+        """Export should raise SceneValidationError when scene data is invalid."""
         from unittest.mock import patch
 
         from PIL import Image
@@ -181,8 +181,35 @@ class TestExportIntegration:
         with (
             patch(
                 "animeforge.pipeline.export.validate_scene_json",
-                side_effect=ValidationError("test: forced invalid"),
+                side_effect=SceneValidationError("test: forced invalid"),
             ),
-            pytest.raises(ValidationError, match="forced invalid"),
+            pytest.raises(SceneValidationError, match="forced invalid"),
         ):
             export_project(sample_project, config)
+
+
+class TestErrorFormatting:
+    def test_path_included_in_message(self) -> None:
+        data = _scene(meta={"name": "test", "width": 1920})
+        with pytest.raises(SceneValidationError, match=r"meta") as exc_info:
+            validate_scene_json(data)
+        assert "height" in str(exc_info.value)
+
+    def test_array_path_uses_bracket_notation(self) -> None:
+        data = _scene(layers=[{"depth": "bg", "parallax_factor": 0.0}])
+        with pytest.raises(SceneValidationError, match=r"layers\[0\]"):
+            validate_scene_json(data)
+
+    def test_root_level_path(self) -> None:
+        data = _scene()
+        del data["initial"]  # type: ignore[arg-type]
+        with pytest.raises(SceneValidationError, match=r"\(root\)"):
+            validate_scene_json(data)
+
+    def test_missing_schema_file(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import animeforge.pipeline.validation as val_mod
+
+        fake_path = Path("/nonexistent/scene.schema.json")
+        monkeypatch.setattr(val_mod, "_SCHEMA_PATH", fake_path)
+        with pytest.raises(FileNotFoundError, match="scene.schema.json"):
+            validate_scene_json({})
